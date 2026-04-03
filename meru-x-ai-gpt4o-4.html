@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>める専用 Xポスト作成AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700&family=Zen+Kaku+Gothic+New:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --rose:#c4706b;--rose-light:#e8a5a0;--blush:#f2d4d0;
+  --cream:#fdf6f0;--white:#fffaf8;--gold:#c9a96e;
+  --text:#2d1f1e;--muted:#6b4c49;
+}
+body{font-family:'Zen Kaku Gothic New',sans-serif;background:var(--cream);color:var(--text);min-height:100vh}
+header{background:var(--white);border-bottom:1px solid var(--blush);padding:14px 16px 10px;text-align:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(196,112,107,.1)}
+.logo{font-size:11px;color:var(--gold);letter-spacing:.15em;margin-bottom:2px}
+h1{font-family:'Noto Serif JP',serif;font-size:17px;font-weight:700}
+.head-sub{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* WORKER URL BANNER */
+.worker-wrap{padding:10px 16px;background:var(--white);border-bottom:1px solid var(--blush)}
+.worker-box{border-radius:12px;padding:12px 14px;font-size:12px;line-height:1.7}
+.worker-box.warn{background:#fff8e1;border:1.5px solid #f0c040;color:#7a5c00}
+.worker-box.ok{background:#e8f5e9;border:1.5px solid #66bb6a;color:#1b5e20}
+.worker-box strong{display:block;margin-bottom:6px;font-size:13px}
+.w-row{display:flex;gap:8px;margin-top:8px}
+.w-row input{flex:1;border:1.5px solid #f0c040;border-radius:9px;padding:8px 10px;font-size:12px;font-family:inherit;background:#fff;color:#333;outline:none}
+.w-row button{padding:8px 14px;background:#7a5c00;color:#fff;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
+.w-change{font-size:11px;cursor:pointer;text-decoration:underline;margin-left:8px;color:#1b5e20}
+
+/* PROGRESS */
+.progress-wrap{background:var(--white);border-bottom:1px solid var(--blush);padding:8px 16px}
+.prog-row{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:5px}
+.track{height:4px;background:var(--blush);border-radius:2px;overflow:hidden}
+.fill{height:100%;background:linear-gradient(90deg,var(--rose),var(--gold));border-radius:2px;transition:width .5s}
+
+/* TABS */
+.tabs{display:flex;gap:5px;padding:10px 16px;background:var(--white);border-bottom:1px solid var(--blush)}
+.tab{flex:1;padding:7px 2px;border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s}
+.tab.active{background:linear-gradient(135deg,var(--rose),var(--rose-light));color:#fff}
+.tab:not(.active){background:var(--blush);color:var(--muted)}
+
+.container{max-width:480px;margin:0 auto;padding:14px}
+.tab-panel{display:none}.tab-panel.active{display:block}
+
+.card{background:var(--white);border-radius:16px;padding:16px;margin-bottom:12px;border:1px solid var(--blush);box-shadow:0 2px 8px rgba(196,112,107,.07)}
+.card-title{font-size:13px;font-weight:700;color:var(--rose);margin-bottom:10px}
+
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.theme-btn{padding:10px 8px;border:1.5px solid var(--blush);background:var(--cream);border-radius:12px;cursor:pointer;text-align:left;font-family:inherit;transition:all .15s}
+.theme-btn.sel{border-color:var(--rose);background:var(--blush)}
+.theme-btn .icon{font-size:18px;display:block;margin-bottom:3px}
+.theme-btn .t-label{font-size:12px;font-weight:700;color:var(--text);display:block}
+.theme-btn.sel .t-label{color:var(--rose)}
+.theme-btn .t-sub{font-size:10px;color:var(--muted);display:block}
+
+label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px}
+select,input[type=text],input[type=number]{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:9px 10px;font-size:13px;color:var(--text);background:var(--cream);font-family:inherit;outline:none;margin-bottom:10px}
+textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:10px;font-size:13px;color:var(--text);background:var(--cream);font-family:inherit;resize:none;outline:none;min-height:70px}
+
+.gen-btn{width:100%;padding:15px;background:linear-gradient(135deg,var(--rose),#e8847f,var(--gold));border:none;border-radius:14px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.05em;margin-top:4px;font-family:inherit;box-shadow:0 4px 18px rgba(196,112,107,.3);transition:all .2s}
+.gen-btn:disabled{opacity:.7;cursor:not-allowed}
+
+.loading{display:none;text-align:center;padding:18px;color:var(--muted);font-size:12px}
+.loading.show{display:block}
+.dots span{display:inline-block;width:7px;height:7px;background:var(--rose-light);border-radius:50%;margin:0 3px;animation:bounce 1.2s infinite}
+.dots span:nth-child(2){animation-delay:.2s}.dots span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:scale(.6);opacity:.5}40%{transform:scale(1);opacity:1}}
+
+.out-card{background:var(--white);border:1.5px solid var(--rose-light);border-radius:16px;padding:16px;margin-top:14px;display:none;animation:fadeUp .3s ease}
+.out-card.show{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.out-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.out-label{font-size:12px;font-weight:700;color:var(--rose)}
+.char-count{font-size:11px;color:var(--muted);background:var(--blush);padding:2px 8px;border-radius:8px}
+.out-text{font-size:14px;line-height:1.8;white-space:pre-wrap;margin-bottom:8px}
+.out-textarea{width:100%;border:1.5px dashed var(--rose-light);border-radius:10px;padding:10px;font-size:13px;color:var(--text);background:var(--cream);resize:none;font-family:inherit;margin-top:6px}
+.out-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:4px}
+.action-row{display:flex;gap:8px;margin-top:12px}
+.action-btn{flex:1;padding:10px 4px;border:1.5px solid var(--blush);border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;background:var(--cream);color:var(--text);font-family:inherit;transition:all .15s}
+.action-btn.primary{background:var(--rose);color:#fff;border-color:var(--rose)}
+
+.err-box{background:#ffe4e4;border:1px solid #e88;border-radius:10px;padding:10px 12px;font-size:12px;color:#c00;margin-bottom:10px}
+
+.strat-card{background:var(--white);border-radius:12px;padding:14px;margin-bottom:10px;border:1px solid var(--blush);border-left:3px solid var(--rose)}
+.strat-month{font-size:13px;font-weight:700;color:var(--rose);margin-bottom:8px}
+.strat-list{list-style:none;font-size:12px;line-height:2}
+.strat-list li::before{content:"✦ ";color:var(--gold)}
+.tag{display:inline-block;background:var(--blush);color:var(--rose);font-size:10px;padding:2px 7px;border-radius:6px;margin:2px;font-weight:700}
+
+.hist-item{background:var(--white);border-radius:12px;padding:12px;margin-bottom:8px;border:1px solid var(--blush);cursor:pointer}
+.hist-theme{display:inline-block;background:var(--blush);color:var(--rose);font-size:10px;padding:2px 7px;border-radius:6px;font-weight:700;margin-bottom:5px}
+.hist-preview{font-size:12px;line-height:1.7;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hist-date{font-size:10px;color:var(--muted);margin-top:5px}
+.empty-state{text-align:center;padding:50px 20px;color:var(--muted)}
+
+.toggle-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--blush);font-size:12px}
+.toggle{width:40px;height:22px;border-radius:11px;border:none;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.toggle.on{background:var(--rose)}.toggle.off{background:var(--blush)}
+.toggle::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;top:3px;transition:left .2s}
+.toggle.on::after{left:21px}.toggle.off::after{left:3px}
+
+.badge{display:inline-block;background:linear-gradient(135deg,var(--rose),var(--gold));color:#fff;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700;margin-left:6px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">✦ Personal AI ✦</div>
+  <h1>める専用 Xポスト作成AI <span class="badge">GPT-4o</span></h1>
+  <div class="head-sub">垣抜けママ研究所 ｜ 3ヶ月収益化プログラム</div>
+</header>
+
+<!-- WORKER URL 設定 -->
+<div class="worker-wrap">
+  <div class="worker-box warn" id="workerBanner">
+    <strong>⚙️ CloudflareワーカーのURLを入力してください</strong>
+    worker.js をデプロイ後に発行されるURL（例: https://meru-ai.xxx.workers.dev）を入力してください。APIキーはサーバー側で管理されます🔒
+    <div class="w-row">
+      <input type="text" id="workerInput" placeholder="https://meru-ai.xxx.workers.dev" />
+      <button onclick="saveWorker()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div class="progress-wrap">
+  <div class="prog-row"><span>🌸 収益化まで</span><span id="progLabel">準備中</span></div>
+  <div class="track"><div class="fill" id="progFill" style="width:5%"></div></div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('create',this)">✍️ 作成</button>
+  <button class="tab" onclick="switchTab('today',this)">☑️ 今日</button>
+  <button class="tab" onclick="switchTab('buzz',this)">📚 学習</button>
+  <button class="tab" onclick="switchTab('strategy',this)">📅 戦略</button>
+  <button class="tab" onclick="switchTab('history',this)">🗂️ 履歴</button>
+  <button class="tab" onclick="switchTab('settings',this)">⚙️ 設定</button>
+</div>
+
+<div class="container">
+
+  <!-- CREATE -->
+  <div class="tab-panel active" id="panel-create">
+    <div class="card">
+      <div class="card-title">🌸 テーマを選ぶ</div>
+      <div class="theme-grid">
+        <button class="theme-btn" onclick="pickTheme(this,'美容習慣')"><span class="icon">💄</span><span class="t-label">美容習慣</span><span class="t-sub">10分ルーティン・スキンケア</span></button>
+        <button class="theme-btn" onclick="pickTheme(this,'ダイエット')"><span class="icon">🌿</span><span class="t-label">ダイエット</span><span class="t-sub">-16kg維持の仕組み</span></button>
+        <button class="theme-btn" onclick="pickTheme(this,'時間術')"><span class="icon">⏰</span><span class="t-label">時間術</span><span class="t-sub">毎日10分確保の秘訣</span></button>
+        <button class="theme-btn" onclick="pickTheme(this,'AI活用')"><span class="icon">🤖</span><span class="t-label">AI活用</span><span class="t-sub">育児×AIで余裕を生む</span></button>
+        <button class="theme-btn" onclick="pickTheme(this,'ワーママ本音')"><span class="icon">👶</span><span class="t-label">ワーママ本音</span><span class="t-sub">共感・リアルな日常</span></button>
+        <button class="theme-btn" onclick="pickTheme(this,'マインド')"><span class="icon">✨</span><span class="t-label">マインド</span><span class="t-sub">余裕を生む考え方</span></button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 詳細設定</div>
+      <label>投稿タイプ</label>
+      <select id="postType">
+        <option>共感・あるある系（バズりやすい）</option>
+        <option>ノウハウ・Tips系（保存される）</option>
+        <option>Before→After 変化系</option>
+        <option>問いかけ・質問系（リプ促進）</option>
+        <option>ストーリー・体験談系</option>
+        <option>リスト・まとめ系</option>
+      </select>
+      <label>ターゲット読者</label>
+      <select id="targetReader">
+        <option>忙しいママ全般</option>
+        <option>美容に悩むワーママ</option>
+        <option>ダイエット中のママ</option>
+        <option>AI活用したいママ</option>
+        <option>自分時間が全くないママ</option>
+      </select>
+      <label>文字数</label>
+      <select id="charLimit">
+        <option value="short">短め（80〜120文字）</option>
+        <option value="medium" selected>標準（140〜200文字）</option>
+        <option value="long">長め（250〜350文字）</option>
+      </select>
+      <label>今日の出来事・メモ（任意）</label>
+      <textarea id="memo" placeholder="例：今朝5時起きで自分時間確保できた！など"></textarea>
+    </div>
+
+    <div class="err-box" id="errBox" style="display:none"></div>
+    <button class="gen-btn" id="genBtn" onclick="generate()">✨ ポストを生成する ✨</button>
+
+    <div class="loading" id="loading">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <p style="margin-top:10px">GPT-4oがめるさんらしい言葉を考えています…</p>
+    </div>
+
+    <div class="out-card" id="outCard">
+      <div class="out-header">
+        <span class="out-label">🌸 生成されたポスト</span>
+        <span class="char-count" id="charCount">0文字</span>
+      </div>
+      <div class="out-text" id="outText"></div>
+      <textarea class="out-textarea" id="outTextarea" rows="5" readonly onclick="this.select()"></textarea>
+      <div class="out-hint">↑ タップして選択 → 長押しでコピー</div>
+      <div class="action-row">
+        <button class="action-btn" onclick="generate()">🔄 再生成</button>
+        <button class="action-btn" id="saveBtn" onclick="savePost()">💾 保存</button>
+        <button class="action-btn primary" id="copyBtn" onclick="copyPost()">📋 コピー</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TODAY TAB -->
+  <div class="tab-panel" id="panel-today">
+
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🤖 Claudeが今日のタスクを生成</span>
+      </div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:10px">フォロワー数・曜日・投稿履歴をもとにClaudeが今日やるべきことを提案します✨</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="number" id="todayFollowers" placeholder="現在のフォロワー数" style="flex:1;margin-bottom:0">
+      </div>
+      <button id="aiTaskBtn" onclick="generateTodayTasks()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--rose),var(--gold));border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✨ 今日のタスクを生成する</button>
+      <div id="aiTaskLoading" style="display:none;text-align:center;padding:14px;color:var(--muted);font-size:12px">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <p style="margin-top:8px">Claudeが考えています…</p>
+      </div>
+    </div>
+
+    <!-- AI生成タスク -->
+    <div id="aiTaskCard" style="display:none">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>📋 今日のタスク</span>
+          <span id="aiTaskProgress" style="font-size:11px;color:var(--muted);font-weight:400">0完了</span>
+        </div>
+        <div id="aiTaskList"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button onclick="generateTodayTasks()" style="flex:1;padding:9px;background:var(--blush);border:none;border-radius:10px;font-size:12px;font-weight:700;color:var(--rose);cursor:pointer;font-family:inherit">🔄 再生成</button>
+          <button onclick="resetTodayCheck()" style="flex:1;padding:9px;background:var(--blush);border:none;border-radius:10px;font-size:12px;font-weight:700;color:var(--rose);cursor:pointer;font-family:inherit">✅ チェックリセット</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- カスタムタスク -->
+    <div class="card">
+      <div class="card-title">➕ カスタムタスクを追加</div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="customTaskInput" placeholder="例：プロフィール更新する" style="flex:1;margin-bottom:0">
+        <button onclick="addCustomTask()" style="padding:9px 14px;background:var(--rose);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">追加</button>
+      </div>
+      <div id="customTaskList" style="margin-top:10px"></div>
+    </div>
+
+    <!-- 今日のネタメモ -->
+    <div class="card">
+      <div class="card-title">📝 今日の投稿ネタメモ</div>
+      <textarea id="todayMemo" placeholder="今日気づいたこと、投稿したいネタをメモ…" style="min-height:80px" oninput="saveTodayMemo()"></textarea>
+    </div>
+  </div>
+
+  <!-- BUZZ LEARNING -->
+  <div class="tab-panel" id="panel-buzz">
+    <div class="card">
+      <div class="card-title">📚 バズ投稿を学習させる</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.8">過去にバズった投稿を登録すると、AIがそのパターンを学習してポストの精度が上がります✨<br>最大20件まで登録できます。</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>📝 バズ投稿を追加</span><span id="buzzCount" style="font-size:11px;color:var(--muted);font-weight:400">0 / 20件</span></div>
+      <label>投稿内容</label>
+      <textarea id="buzzInput" placeholder="バズった投稿をここに貼り付けてください" style="min-height:100px"></textarea>
+      <label style="margin-top:8px">いいね数（任意）</label>
+      <input type="number" id="buzzLikes" placeholder="例: 500" style="margin-bottom:10px">
+      <button onclick="addBuzz()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--rose),var(--gold));border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">＋ 追加する</button>
+    </div>
+    <div id="buzzList"></div>
+  </div>
+
+  <!-- STRATEGY -->
+  <div class="tab-panel" id="panel-strategy">
+    <div class="card">
+      <div class="card-title">🎯 3ヶ月収益化ロードマップ</div>
+      <p style="font-size:12px;color:var(--muted);line-height:1.8">収益化条件：<strong>フォロワー500人以上 + 3ヶ月で500万インプレ</strong></p>
+    </div>
+    <div class="strat-card">
+      <div class="strat-month">📅 1ヶ月目｜種まき期（信頼構築）</div>
+      <ul class="strat-list">
+        <li>毎日1〜2投稿（共感系×ノウハウ系）</li>
+        <li>自己紹介ポストを週1で投稿</li>
+        <li>-16kgリバウンドなしの実績を軸に発信</li>
+        <li>リプライで積極コミュニティ参加</li>
+        <li>目標：フォロワー300人・インプレ100万</li>
+      </ul>
+    </div>
+    <div class="strat-card">
+      <div class="strat-month">📅 2ヶ月目｜加速期（拡散強化）</div>
+      <ul class="strat-list">
+        <li>バズポスト分析→同パターン量産</li>
+        <li>スレッド形式で保存数UP</li>
+        <li>投稿時間最適化（7〜9時 / 21〜23時）</li>
+        <li>AI活用ネタで差別化</li>
+        <li>目標：フォロワー500人・インプレ350万</li>
+      </ul>
+    </div>
+    <div class="strat-card">
+      <div class="strat-month">📅 3ヶ月目｜収穫期（収益化準備）</div>
+      <ul class="strat-list">
+        <li>収益化申請・Xプレミアム広告</li>
+        <li>ノート（有料記事）投入準備</li>
+        <li>LINE公式へ読者誘導</li>
+        <li>アフィリエイト・コンサル告知開始</li>
+        <li>目標：フォロワー1000人・インプレ500万超</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">⏰ 最適な投稿時間帯</div>
+      <div style="font-size:12px;line-height:2.2">
+        🌅 <strong>7:00〜9:00</strong> — 通勤・育児の隙間<br>
+        ☀️ <strong>12:00〜13:00</strong> — ランチタイム<br>
+        🌙 <strong>21:00〜23:00</strong> — 子供就寝後 ⭐ゴールデンタイム
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🏷️ 必須ハッシュタグ</div>
+      <span class="tag">#ワーママ</span><span class="tag">#ワーママライフ</span><span class="tag">#ダイエット</span><span class="tag">#ママダイエット</span><span class="tag">#時短美容</span><span class="tag">#育児</span><span class="tag">#AI活用</span><span class="tag">#自分時間</span><span class="tag">#美容習慣</span><span class="tag">#垣抜けママ</span>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="tab-panel" id="panel-history">
+    <div id="histList">
+      <div class="empty-state"><div style="font-size:36px;margin-bottom:12px">🌸</div><p>まだ保存されたポストはありません</p><p style="font-size:11px;margin-top:6px">作成タブで生成→保存してください</p></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="tab-panel" id="panel-settings">
+    <div class="card">
+      <div class="card-title">🌸 投稿スタイル設定</div>
+      <div class="toggle-row"><span>絵文字を使う</span><button class="toggle on" id="tgEmoji" onclick="tog('tgEmoji')"></button></div>
+      <div class="toggle-row"><span>ハッシュタグを付ける</span><button class="toggle on" id="tgHash" onclick="tog('tgHash')"></button></div>
+      <div class="toggle-row" style="border:none"><span>体験談ベースのトーン</span><button class="toggle on" id="tgPersonal" onclick="tog('tgPersonal')"></button></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 進捗管理</div>
+      <label>現在のフォロワー数</label>
+      <input type="number" id="followerInput" placeholder="例: 127" oninput="updateProgress(this.value)">
+    </div>
+    <div class="card">
+      <div class="card-title">⚙️ WorkerURL設定</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">WorkerのURLを変更する場合はこちら</div>
+      <button onclick="resetWorker()" style="padding:9px 16px;background:var(--blush);border:none;border-radius:10px;font-size:12px;font-weight:700;color:var(--rose);cursor:pointer;font-family:inherit">🔄 URLをリセット</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var workerUrl = localStorage.getItem('meru_worker') || '';
+var selectedTheme = '';
+var currentPost = '';
+var postHistory = JSON.parse(localStorage.getItem('meru_hist2') || '[]');
+
+(function(){
+  if(workerUrl) showWorkerOk();
+})();
+
+function saveWorker(){
+  var v = document.getElementById('workerInput').value.trim();
+  if(!v.startsWith('http')){ alert('URLはhttpから始まります'); return; }
+  workerUrl = v.replace(/\/$/, '');
+  localStorage.setItem('meru_worker', workerUrl);
+  showWorkerOk();
+}
+
+function showWorkerOk(){
+  var b = document.getElementById('workerBanner');
+  b.className = 'worker-box ok';
+  b.innerHTML = '<strong>✅ サーバーに接続済み🔒 APIキーは安全に管理されています</strong><span class="w-change" onclick="resetWorker()">変更する</span>';
+}
+
+function resetWorker(){
+  workerUrl = '';
+  localStorage.removeItem('meru_worker');
+  var b = document.getElementById('workerBanner');
+  b.className = 'worker-box warn';
+  b.innerHTML = '<strong>⚙️ CloudflareワーカーのURLを入力してください</strong>worker.js をデプロイ後に発行されるURL（例: https://meru-ai.xxx.workers.dev）を入力してください。APIキーはサーバー側で管理されます🔒<div class="w-row"><input type="text" id="workerInput" placeholder="https://meru-ai.xxx.workers.dev"><button onclick="saveWorker()">保存</button></div>';
+}
+
+function switchTab(id, el){
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  document.getElementById('panel-'+id).classList.add('active');
+  el.classList.add('active');
+  if(id === 'history') renderHistory();
+  if(id === 'buzz') renderBuzz();
+}
+
+function pickTheme(el, theme){
+  document.querySelectorAll('.theme-btn').forEach(function(b){ b.classList.remove('sel'); });
+  el.classList.add('sel');
+  selectedTheme = theme;
+}
+
+function tog(id){
+  var el = document.getElementById(id);
+  el.classList.toggle('on');
+  el.classList.toggle('off');
+}
+
+function updateProgress(val){
+  var n = parseInt(val) || 0;
+  var pct = Math.min((n/500)*60+5, 95);
+  document.getElementById('progFill').style.width = pct+'%';
+  document.getElementById('progLabel').textContent =
+    n < 100 ? '種まき中🌱' : n < 300 ? '成長中🌿' : n < 500 ? '収益化まであと少し！🌸' : '収益化達成！🎉';
+}
+
+function showErr(msg){
+  var b = document.getElementById('errBox');
+  b.textContent = '⚠️ ' + msg;
+  b.style.display = 'block';
+}
+function hideErr(){ document.getElementById('errBox').style.display = 'none'; }
+
+async function generate(){
+  if(!workerUrl){ showErr('先にWorkerのURLを設定してください⚙️'); return; }
+  if(!selectedTheme){ showErr('テーマを選んでください🌸'); return; }
+  hideErr();
+
+  var postType  = document.getElementById('postType').value;
+  var target    = document.getElementById('targetReader').value;
+  var charLim   = document.getElementById('charLimit').value;
+  var memo      = document.getElementById('memo').value;
+  var useEmoji  = document.getElementById('tgEmoji').classList.contains('on');
+  var useHash   = document.getElementById('tgHash').classList.contains('on');
+  var usePers   = document.getElementById('tgPersonal').classList.contains('on');
+  var charGuide = charLim==='short'?'80〜120文字':charLim==='medium'?'140〜200文字':'250〜350文字';
+
+  var prompt = 'アカウント情報：めるさん／垣抜けママ研究所。2児のワーママ。-16kgリバウンドなし。毎日10分の自分時間確保。AIを活用して育児・仕事・美容を両立。\n\nポスト条件：\nテーマ：'+selectedTheme+'\n投稿タイプ：'+postType+'\nターゲット：'+target+'\n文字数：'+charGuide+'\n絵文字：'+(useEmoji?'2〜4個使う':'使わない')+'\n語尾：タメ口（〜だよ、〜してる）\n体験談ベース：'+(usePers?'はい':'いいえ')+(memo?'\n今日のメモ：'+memo:'')+'\nハッシュタグ：'+(useHash?'末尾に2〜3個':'なし')+getBuzzPrompt()+'\n\n制約：めるさん本人が書いた自然な文体。共感ファースト。最後にリプ・いいね誘導。ポスト本文のみ返答。';
+
+  document.getElementById('genBtn').disabled = true;
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('outCard').classList.remove('show');
+
+  try {
+    var res = await fetch(workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: prompt })
+    });
+    var data = await res.json();
+    if(data.error){ showErr(data.error); return; }
+    currentPost = data.text;
+    document.getElementById('outText').textContent = data.text;
+    document.getElementById('outTextarea').value = data.text;
+    document.getElementById('charCount').textContent = data.text.length + '文字';
+    document.getElementById('outCard').classList.add('show');
+  } catch(e) {
+    showErr('通信エラーです。WorkerのURLを確認してください。');
+  } finally {
+    document.getElementById('genBtn').disabled = false;
+    document.getElementById('loading').classList.remove('show');
+  }
+}
+
+function copyPost(){
+  if(!currentPost) return;
+  var btn = document.getElementById('copyBtn');
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = currentPost;
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅ コピー完了';
+    setTimeout(function(){ btn.textContent = '📋 コピー'; }, 2000);
+  } catch(e) {
+    window.prompt('長押しでコピーしてください：', currentPost);
+  }
+}
+
+function savePost(){
+  if(!currentPost) return;
+  var item = { id: Date.now(), theme: selectedTheme, type: document.getElementById('postType').value, text: currentPost, date: new Date().toLocaleDateString('ja-JP') };
+  postHistory.unshift(item);
+  if(postHistory.length > 30) postHistory.pop();
+  localStorage.setItem('meru_hist2', JSON.stringify(postHistory));
+  var btn = document.getElementById('saveBtn');
+  btn.textContent = '✅ 保存完了';
+  setTimeout(function(){ btn.textContent = '💾 保存'; }, 2000);
+}
+
+function renderHistory(){
+  var el = document.getElementById('histList');
+  if(!postHistory.length){
+    el.innerHTML = '<div class="empty-state"><div style="font-size:36px;margin-bottom:12px">🌸</div><p>まだ保存されたポストはありません</p></div>';
+    return;
+  }
+  el.innerHTML = postHistory.map(function(item){
+    return '<div class="hist-item" onclick="loadHist('+item.id+')">'
+      +'<span class="hist-theme">'+item.theme+'</span>'
+      +'<div class="hist-preview">'+item.text+'</div>'
+      +'<div class="hist-date">'+item.date+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function loadHist(id){
+  var item = postHistory.find(function(h){ return h.id===id; });
+  if(!item) return;
+  currentPost = item.text;
+  document.getElementById('outText').textContent = item.text;
+  document.getElementById('outTextarea').value = item.text;
+  document.getElementById('charCount').textContent = item.text.length+'文字';
+  document.getElementById('outCard').classList.add('show');
+  switchTab('create', document.querySelectorAll('.tab')[0]);
+}
+
+// ===== バズ投稿学習機能 =====
+var buzzPosts = JSON.parse(localStorage.getItem('meru_buzz') || '[]');
+
+function addBuzz(){
+  var text = document.getElementById('buzzInput').value.trim();
+  var likes = document.getElementById('buzzLikes').value;
+  if(!text){ alert('投稿内容を入力してください'); return; }
+  if(buzzPosts.length >= 20){ alert('最大20件まで登録できます。古い投稿を削除してください。'); return; }
+  buzzPosts.push({ id: Date.now(), text: text, likes: parseInt(likes)||0 });
+  localStorage.setItem('meru_buzz', JSON.stringify(buzzPosts));
+  document.getElementById('buzzInput').value = '';
+  document.getElementById('buzzLikes').value = '';
+  renderBuzz();
+}
+
+function deleteBuzz(id){
+  buzzPosts = buzzPosts.filter(function(b){ return b.id !== id; });
+  localStorage.setItem('meru_buzz', JSON.stringify(buzzPosts));
+  renderBuzz();
+}
+
+function renderBuzz(){
+  var el = document.getElementById('buzzList');
+  var count = document.getElementById('buzzCount');
+  if(count) count.textContent = buzzPosts.length + ' / 20件';
+  if(!el) return;
+  if(!buzzPosts.length){
+    el.innerHTML = '<div style="text-align:center;padding:30px 20px;color:var(--muted);font-size:12px">まだ登録されたバズ投稿はありません</div>';
+    return;
+  }
+  el.innerHTML = buzzPosts.map(function(b){
+    return '<div style="background:var(--white);border-radius:12px;padding:12px;margin-bottom:8px;border:1px solid var(--blush)">'
+      +(b.likes ? '<span style="display:inline-block;background:var(--blush);color:var(--rose);font-size:10px;padding:2px 7px;border-radius:6px;font-weight:700;margin-bottom:6px">❤️ '+b.likes+'いいね</span>' : '')
+      +'<div style="font-size:12px;line-height:1.7;white-space:pre-wrap">'+b.text+'</div>'
+      +'<button onclick="deleteBuzz('+b.id+')" style="margin-top:8px;padding:5px 12px;background:var(--blush);border:none;border-radius:8px;font-size:11px;color:var(--rose);cursor:pointer;font-weight:700;font-family:inherit">🗑️ 削除</button>'
+      +'</div>';
+  }).join('');
+}
+
+// バズ投稿をプロンプトに組み込む
+function getBuzzPrompt(){
+  if(!buzzPosts.length) return '';
+  var sorted = buzzPosts.slice().sort(function(a,b){ return b.likes - a.likes; }).slice(0, 5);
+  return '\n\n【学習済みバズ投稿（このパターンを参考に）】\n' + sorted.map(function(b,i){
+    return '例'+(i+1)+(b.likes?'（'+b.likes+'いいね）':'')+'：\n'+b.text;
+  }).join('\n\n');
+}
+
+// 初期化
+(function(){ renderBuzz(); })();
+
+// ===== 今日タブ（Claude AI タスク生成） =====
+var todayDateKey = new Date().toLocaleDateString('ja-JP');
+var todayCheckKey = 'meru_today_check_' + todayDateKey;
+var todayChecked = JSON.parse(localStorage.getItem(todayCheckKey) || '[]');
+var aiTasks = JSON.parse(localStorage.getItem('meru_ai_tasks_' + todayDateKey) || '[]');
+var customTasks = JSON.parse(localStorage.getItem('meru_custom_tasks') || '[]');
+
+async function generateTodayTasks(){
+  if(!workerUrl){ alert('先にWorkerのURLを設定してください⚙️'); return; }
+
+  var followers = document.getElementById('todayFollowers').value || '不明';
+  var dayNames = ['日','月','火','水','木','金','土'];
+  var today = new Date();
+  var dayName = dayNames[today.getDay()] + '曜日';
+  var recentPosts = postHistory.slice(0,5).map(function(p){ return '「'+p.text.slice(0,30)+'…」'; }).join('、') || 'まだなし';
+  var buzzCount = buzzPosts ? buzzPosts.length : 0;
+
+  var prompt = 'めるさん（垣抜けママ研究所）のXアカウント運用のコーチです。\n\n【状況】\n今日：'+dayName+'\nフォロワー数：'+followers+'人\n最近の投稿：'+recentPosts+'\n登録済みバズ投稿：'+buzzCount+'件\n目標：3ヶ月でX収益化（フォロワー500人・500万インプレ）\n\n【依頼】\n今日1日でやるべきX運用タスクを5〜8個提案してください。具体的で実行しやすい内容にしてください。曜日や状況を考慮してください（例：月曜なら週の計画、金曜なら週の振り返りなど）。\n\n【出力形式】JSONのみ返答。説明文不要。[{"task":"タスク内容","icon":"絵文字","priority":"high/medium/low"}]の形式で返答。';
+
+  document.getElementById('aiTaskBtn').disabled = true;
+  document.getElementById('aiTaskLoading').style.display = 'block';
+  document.getElementById('aiTaskCard').style.display = 'none';
+
+  try {
+    var res = await fetch(workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: prompt })
+    });
+    var data = await res.json();
+    if(data.error){ alert('エラー：' + data.error); return; }
+
+    var text = data.text.replace(/```json|```/g, '').trim();
+    var tasks = JSON.parse(text);
+    aiTasks = tasks.map(function(t, i){ return { id: 'ai_'+i+'_'+Date.now(), task: t.task, icon: t.icon||'✅', priority: t.priority||'medium' }; });
+    localStorage.setItem('meru_ai_tasks_' + todayDateKey, JSON.stringify(aiTasks));
+    todayChecked = [];
+    localStorage.setItem(todayCheckKey, JSON.stringify(todayChecked));
+    renderAiTasks();
+    document.getElementById('aiTaskCard').style.display = 'block';
+  } catch(e) {
+    alert('生成に失敗しました。もう一度お試しください。');
+  } finally {
+    document.getElementById('aiTaskBtn').disabled = false;
+    document.getElementById('aiTaskLoading').style.display = 'none';
+  }
+}
+
+function toggleTodayTask(id){
+  var idx = todayChecked.indexOf(id);
+  if(idx >= 0){ todayChecked.splice(idx, 1); } else { todayChecked.push(id); }
+  localStorage.setItem(todayCheckKey, JSON.stringify(todayChecked));
+  renderAiTasks();
+}
+
+function resetTodayCheck(){
+  todayChecked = [];
+  localStorage.setItem(todayCheckKey, JSON.stringify(todayChecked));
+  renderAiTasks();
+}
+
+function renderAiTasks(){
+  var el = document.getElementById('aiTaskList');
+  var prog = document.getElementById('aiTaskProgress');
+  if(!el || !aiTasks.length) return;
+
+  var done = aiTasks.filter(function(t){ return todayChecked.indexOf(t.id) >= 0; }).length;
+  if(prog) prog.textContent = done + ' / ' + aiTasks.length + '完了';
+
+  var priorityColor = { high: '#ffebee', medium: 'transparent', low: 'transparent' };
+  var priorityLabel = { high: '🔴 優先', medium: '', low: '' };
+
+  el.innerHTML = aiTasks.map(function(t){
+    var checked = todayChecked.indexOf(t.id) >= 0;
+    return '<div onclick="toggleTodayTask(''+t.id+'')" style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--blush);cursor:pointer;background:'+priorityColor[t.priority]+';border-radius:8px;padding:10px;margin-bottom:4px">'
+      +'<div style="width:22px;height:22px;border-radius:6px;border:2px solid '+(checked?'var(--rose)':'var(--blush)')+';background:'+(checked?'var(--rose)':'transparent')+';display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">'
+      +(checked?'<span style="color:#fff;font-size:12px;font-weight:700">✓</span>':'')
+      +'</div>'
+      +'<div style="flex:1">'
+      +'<span style="font-size:13px;line-height:1.6;'+(checked?'text-decoration:line-through;color:var(--muted)':'color:var(--text)')+'">'+t.icon+' '+t.task+'</span>'
+      +(t.priority==='high' && !checked ? '<span style="display:block;font-size:10px;color:#e53935;margin-top:2px">優先タスク</span>' : '')
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function addCustomTask(){
+  var val = document.getElementById('customTaskInput').value.trim();
+  if(!val) return;
+  customTasks.push({ id: 'c_'+Date.now(), label: val });
+  localStorage.setItem('meru_custom_tasks', JSON.stringify(customTasks));
+  document.getElementById('customTaskInput').value = '';
+  renderCustomTasks();
+}
+
+function deleteCustomTask(id){
+  customTasks = customTasks.filter(function(t){ return t.id !== id; });
+  localStorage.setItem('meru_custom_tasks', JSON.stringify(customTasks));
+  renderCustomTasks();
+}
+
+function renderCustomTasks(){
+  var el = document.getElementById('customTaskList');
+  if(!el) return;
+  if(!customTasks.length){ el.innerHTML = ''; return; }
+  el.innerHTML = customTasks.map(function(t){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--blush)">'
+      +'<span style="flex:1;font-size:12px">⭐ '+t.label+'</span>'
+      +'<button onclick="deleteCustomTask(''+t.id+'')" style="padding:3px 8px;background:var(--blush);border:none;border-radius:6px;font-size:10px;color:var(--rose);cursor:pointer;font-family:inherit">削除</button>'
+      +'</div>';
+  }).join('');
+}
+
+function saveTodayMemo(){
+  localStorage.setItem('meru_today_memo', document.getElementById('todayMemo').value);
+}
+
+function initTodayTab(){
+  // フォロワー数を設定から引き継ぎ
+  var savedFollowers = document.getElementById('followerInput') ? document.getElementById('followerInput').value : '';
+  if(savedFollowers) document.getElementById('todayFollowers').value = savedFollowers;
+
+  // 保存済みAIタスクがあれば表示
+  if(aiTasks.length){
+    renderAiTasks();
+    document.getElementById('aiTaskCard').style.display = 'block';
+  }
+  renderCustomTasks();
+
+  // メモ復元
+  var memo = document.getElementById('todayMemo');
+  if(memo) memo.value = localStorage.getItem('meru_today_memo') || '';
+}
+
+// switchTab を上書きして today タブ初期化
+var _origSwitch = switchTab;
+switchTab = function(id, el){
+  _origSwitch(id, el);
+  if(id === 'today') initTodayTab();
+};
+
+</script>
+</body>
+</html>
