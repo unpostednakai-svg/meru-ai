@@ -409,9 +409,19 @@ function switchTab(id, el){
 }
 
 function pickTheme(el, theme){
-  document.querySelectorAll('.theme-btn').forEach(function(b){ b.classList.remove('sel'); });
+  document.querySelectorAll('.theme-btn').forEach(function(b){
+    b.classList.remove('sel');
+    b.style.borderColor = '';
+    b.style.background = '';
+  });
   el.classList.add('sel');
+  el.style.borderColor = 'var(--rose)';
+  el.style.background = 'var(--blush)';
   selectedTheme = theme;
+  // 視覚的フィードバック
+  var labels = el.querySelectorAll('.t-label');
+  document.querySelectorAll('.theme-btn .t-label').forEach(function(l){ l.style.color = ''; });
+  if(labels.length) labels[0].style.color = 'var(--rose)';
 }
 
 function tog(id){
