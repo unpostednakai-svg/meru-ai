@@ -363,13 +363,30 @@ var postHistory = JSON.parse(localStorage.getItem('meru_hist2') || '[]');
 
 (function(){
   if(workerUrl) showWorkerOk();
+  else {
+    // Try to pre-fill if URL is in input
+    var inp = document.getElementById('workerInput');
+    if(inp && inp.value && inp.value !== inp.placeholder) {
+      workerUrl = inp.value.trim();
+      if(workerUrl.startsWith('http')) {
+        localStorage.setItem('meru_worker', workerUrl);
+        showWorkerOk();
+      }
+    }
+  }
 })();
 
 function saveWorker(){
   var v = document.getElementById('workerInput').value.trim();
+  if(!v){ alert('URLを入力してください'); return; }
   if(!v.startsWith('http')){ alert('URLはhttpから始まります'); return; }
   workerUrl = v.replace(/\/$/, '');
-  localStorage.setItem('meru_worker', workerUrl);
+  try {
+    localStorage.setItem('meru_worker', workerUrl);
+  } catch(e) {
+    alert('保存エラー: ' + e.message);
+    return;
+  }
   showWorkerOk();
 }
 
