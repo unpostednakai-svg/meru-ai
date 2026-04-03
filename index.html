@@ -114,13 +114,8 @@ textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:1
 
 <!-- WORKER URL 設定 -->
 <div class="worker-wrap">
-  <div class="worker-box warn" id="workerBanner">
-    <strong>⚙️ CloudflareワーカーのURLを入力してください</strong>
-    worker.js をデプロイ後に発行されるURL（例: https://meru-ai.xxx.workers.dev）を入力してください。APIキーはサーバー側で管理されます🔒
-    <div class="w-row">
-      <input type="text" id="workerInput" placeholder="https://meru-ai.xxx.workers.dev" />
-      <button onclick="saveWorker()">保存</button>
-    </div>
+  <div class="worker-box ok" id="workerBanner">
+    <strong>✅ サーバーに接続済み🔒 APIキーは安全に管理されています</strong>
   </div>
 </div>
 
@@ -356,7 +351,7 @@ textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:1
 </div>
 
 <script>
-var workerUrl = localStorage.getItem('meru_worker') || '';
+var workerUrl = 'https://meru-ai.unposted-nakai.workers.dev';
 var selectedTheme = '';
 var currentPost = '';
 var postHistory = JSON.parse(localStorage.getItem('meru_hist2') || '[]');
