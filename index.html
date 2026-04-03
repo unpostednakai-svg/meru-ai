@@ -142,12 +142,12 @@ textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:1
     <div class="card">
       <div class="card-title">🌸 テーマを選ぶ</div>
       <div class="theme-grid">
-        <button class="theme-btn" onclick="pickTheme(this,'美容習慣')"><span class="icon">💄</span><span class="t-label">美容習慣</span><span class="t-sub">10分ルーティン・スキンケア</span></button>
-        <button class="theme-btn" onclick="pickTheme(this,'ダイエット')"><span class="icon">🌿</span><span class="t-label">ダイエット</span><span class="t-sub">-16kg維持の仕組み</span></button>
-        <button class="theme-btn" onclick="pickTheme(this,'時間術')"><span class="icon">⏰</span><span class="t-label">時間術</span><span class="t-sub">毎日10分確保の秘訣</span></button>
-        <button class="theme-btn" onclick="pickTheme(this,'AI活用')"><span class="icon">🤖</span><span class="t-label">AI活用</span><span class="t-sub">育児×AIで余裕を生む</span></button>
-        <button class="theme-btn" onclick="pickTheme(this,'ワーママ本音')"><span class="icon">👶</span><span class="t-label">ワーママ本音</span><span class="t-sub">共感・リアルな日常</span></button>
-        <button class="theme-btn" onclick="pickTheme(this,'マインド')"><span class="icon">✨</span><span class="t-label">マインド</span><span class="t-sub">余裕を生む考え方</span></button>
+        <button class="theme-btn" data-theme="美容習慣"><span class="icon">💄</span><span class="t-label">美容習慣</span><span class="t-sub">10分ルーティン・スキンケア</span></button>
+        <button class="theme-btn" data-theme="ダイエット"><span class="icon">🌿</span><span class="t-label">ダイエット</span><span class="t-sub">-16kg維持の仕組み</span></button>
+        <button class="theme-btn" data-theme="時間術"><span class="icon">⏰</span><span class="t-label">時間術</span><span class="t-sub">毎日10分確保の秘訣</span></button>
+        <button class="theme-btn" data-theme="AI活用"><span class="icon">🤖</span><span class="t-label">AI活用</span><span class="t-sub">育児×AIで余裕を生む</span></button>
+        <button class="theme-btn" data-theme="ワーママ本音"><span class="icon">👶</span><span class="t-label">ワーママ本音</span><span class="t-sub">共感・リアルな日常</span></button>
+        <button class="theme-btn" data-theme="マインド"><span class="icon">✨</span><span class="t-label">マインド</span><span class="t-sub">余裕を生む考え方</span></button>
       </div>
     </div>
 
@@ -413,16 +413,31 @@ function pickTheme(el, theme){
     b.classList.remove('sel');
     b.style.borderColor = '';
     b.style.background = '';
+    var lbl = b.querySelector('.t-label');
+    if(lbl) lbl.style.color = '';
   });
   el.classList.add('sel');
-  el.style.borderColor = 'var(--rose)';
-  el.style.background = 'var(--blush)';
+  el.style.borderColor = '#c4706b';
+  el.style.background = '#f2d4d0';
   selectedTheme = theme;
-  // 視覚的フィードバック
-  var labels = el.querySelectorAll('.t-label');
-  document.querySelectorAll('.theme-btn .t-label').forEach(function(l){ l.style.color = ''; });
-  if(labels.length) labels[0].style.color = 'var(--rose)';
+  var label = el.querySelector('.t-label');
+  if(label) label.style.color = '#c4706b';
+  hideErr();
 }
+
+// テーマボタンにタッチイベントを追加
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.theme-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      pickTheme(this, this.getAttribute('data-theme'));
+    });
+    btn.addEventListener('touchend', function(e){
+      e.preventDefault();
+      pickTheme(this, this.getAttribute('data-theme'));
+    });
+  });
+});
 
 function tog(id){
   var el = document.getElementById(id);
