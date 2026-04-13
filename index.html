@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Xポスト作成AI</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@700&family=Zen+Kaku+Gothic+New:wght@300;400;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -102,9 +103,56 @@ textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:1
 .toggle.on::after{left:21px}.toggle.off::after{left:3px}
 
 .badge{display:inline-block;background:linear-gradient(135deg,var(--rose),var(--gold));color:#fff;font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700;margin-left:6px}
+
+/* LOGIN OVERLAY */
+.login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,var(--cream) 0%,var(--blush) 50%,var(--white) 100%);z-index:9999;display:flex;align-items:center;justify-content:center;transition:opacity .5s,visibility .5s}
+.login-overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+.login-card{background:var(--white);border-radius:24px;padding:40px 32px;text-align:center;max-width:360px;width:90%;box-shadow:0 12px 60px rgba(196,112,107,.18);border:1px solid var(--blush)}
+.login-card .logo-lg{font-size:42px;margin-bottom:12px}
+.login-card h2{font-family:'Noto Serif JP',serif;font-size:20px;margin-bottom:6px;color:var(--text)}
+.login-card .login-sub{font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:24px}
+.login-card .g-btn-wrap{display:flex;justify-content:center;margin-bottom:16px}
+.login-card .login-note{font-size:10px;color:var(--muted);line-height:1.7}
+
+/* USER BAR */
+.user-bar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--white);border-bottom:1px solid var(--blush);font-size:12px;color:var(--muted)}
+.user-bar img{width:28px;height:28px;border-radius:50%;border:2px solid var(--blush)}
+.user-bar .uname{font-weight:700;color:var(--text);font-size:12px}
+.user-bar .logout-btn{margin-left:auto;padding:4px 10px;background:var(--blush);border:none;border-radius:8px;font-size:10px;color:var(--rose);cursor:pointer;font-weight:700;font-family:inherit}
+
+/* AUTOSAVE INDICATOR */
+.autosave-toast{position:fixed;bottom:20px;right:20px;background:var(--white);border:1.5px solid var(--blush);border-radius:12px;padding:8px 14px;font-size:11px;color:var(--muted);box-shadow:0 4px 20px rgba(196,112,107,.15);z-index:200;opacity:0;transform:translateY(10px);transition:opacity .3s,transform .3s;pointer-events:none;font-family:'Zen Kaku Gothic New',sans-serif}
+.autosave-toast.show{opacity:1;transform:translateY(0)}
 </style>
 </head>
 <body>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <div class="logo-lg">🌸</div>
+    <h2>Xポスト作成AI</h2>
+    <p class="login-sub">垣抜けママ研究所 ｜ 3ヶ月収益化プログラム<br>Googleアカウントでログインして始めましょう</p>
+    <div class="g-btn-wrap">
+      <div id="googleSignInBtn"></div>
+    </div>
+    <p class="login-note">🔒 安全なGoogleログインを使用しています<br>パスワードはこのアプリには送信されません</p>
+  </div>
+</div>
+
+<!-- AUTOSAVE TOAST -->
+<div class="autosave-toast" id="autosaveToast">💾 自動保存しました</div>
+
+<!-- USER BAR (hidden until login) -->
+<div class="user-bar" id="userBar" style="display:none">
+  <img id="userAvatar" src="" alt="">
+  <div>
+    <div class="uname" id="userName">ゲスト</div>
+    <div id="userEmail" style="font-size:10px;color:var(--muted)"></div>
+  </div>
+  <span id="autosaveLabel" style="font-size:10px;color:#66bb6a">✅ 自動保存ON</span>
+  <button class="logout-btn" onclick="handleLogout()">ログアウト</button>
+</div>
 
 <header>
   <div class="logo">✦ Personal AI ✦</div>
@@ -175,6 +223,8 @@ textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:1
         <option value="short">短め（80〜120文字）</option>
         <option value="medium" selected>標準（140〜200文字）</option>
         <option value="long">長め（250〜350文字）</option>
+        <option value="xlong">かなり長め（500〜700文字）</option>
+        <option value="max">最長（800〜1000文字）</option>
       </select>
       <label>今日の出来事・メモ（任意）</label>
       <textarea id="memo" placeholder="例：今朝5時起きで自分時間確保できた！など"></textarea>
@@ -185,7 +235,7 @@ textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:1
 
     <div class="loading" id="loading">
       <div class="dots"><span></span><span></span><span></span></div>
-      <p style="margin-top:10px">GPT-4oがめるさんらしい言葉を考えています…</p>
+      <p style="margin-top:10px" id="loadingMsg">AIがめるさんらしい言葉を考えています…</p>
     </div>
 
     <div class="out-card" id="outCard">
@@ -218,7 +268,7 @@ textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:1
       <button id="aiTaskBtn" onclick="generateTodayTasks()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--rose),var(--gold));border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">✨ 今日のタスクを生成する</button>
       <div id="aiTaskLoading" style="display:none;text-align:center;padding:14px;color:var(--muted);font-size:12px">
         <div class="dots"><span></span><span></span><span></span></div>
-        <p style="margin-top:8px">Claudeが考えています…</p>
+        <p style="margin-top:8px" id="aiTaskLoadingMsg">AIが考えています…</p>
       </div>
     </div>
 
@@ -258,15 +308,39 @@ textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:1
   <div class="tab-panel" id="panel-buzz">
     <div class="card">
       <div class="card-title">📚 バズ投稿を学習させる</div>
-      <p style="font-size:12px;color:var(--muted);line-height:1.8">過去にバズった投稿を登録すると、AIがそのパターンを学習してポストの精度が上がります✨<br>最大20件まで登録できます。</p>
+      <p style="font-size:12px;color:var(--muted);line-height:1.8">過去にバズった投稿を登録すると、AIがそのパターンを学習してポストの精度が上がります✨<br>最大120件まで登録できます。</p>
     </div>
     <div class="card">
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>📝 バズ投稿を追加</span><span id="buzzCount" style="font-size:11px;color:var(--muted);font-weight:400">0 / 20件</span></div>
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>📝 バズ投稿を追加</span><span id="buzzCount" style="font-size:11px;color:var(--muted);font-weight:400">0 / 120件</span></div>
+      <label>テーマ</label>
+      <select id="buzzTheme">
+        <option value="美容習慣">💄 美容習慣</option>
+        <option value="ダイエット">🌿 ダイエット</option>
+        <option value="時間術">⏰ 時間術</option>
+        <option value="AI活用">🤖 AI活用</option>
+        <option value="ワーママ本音">👶 ワーママ本音</option>
+        <option value="マインド">✨ マインド</option>
+        <option value="その他">📌 その他</option>
+      </select>
       <label>投稿内容</label>
       <textarea id="buzzInput" placeholder="バズった投稿をここに貼り付けてください" style="min-height:100px"></textarea>
       <label style="margin-top:8px">いいね数（任意）</label>
       <input type="number" id="buzzLikes" placeholder="例: 500" style="margin-bottom:10px">
       <button onclick="addBuzz()" style="width:100%;padding:12px;background:linear-gradient(135deg,var(--rose),var(--gold));border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">＋ 追加する</button>
+    </div>
+    <!-- テーマフィルター -->
+    <div class="card" style="padding:10px 14px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:11px;font-weight:700;color:var(--muted);margin-right:2px">絞込:</span>
+        <button class="tag" style="cursor:pointer;border:none" onclick="filterBuzz('all')">すべて</button>
+        <button class="tag" style="cursor:pointer;border:none" onclick="filterBuzz('美容習慣')">💄 美容</button>
+        <button class="tag" style="cursor:pointer;border:none" onclick="filterBuzz('ダイエット')">🌿 ダイエット</button>
+        <button class="tag" style="cursor:pointer;border:none" onclick="filterBuzz('時間術')">⏰ 時間術</button>
+        <button class="tag" style="cursor:pointer;border:none" onclick="filterBuzz('AI活用')">🤖 AI</button>
+        <button class="tag" style="cursor:pointer;border:none" onclick="filterBuzz('ワーママ本音')">👶 ワーママ</button>
+        <button class="tag" style="cursor:pointer;border:none" onclick="filterBuzz('マインド')">✨ マインド</button>
+        <button class="tag" style="cursor:pointer;border:none" onclick="filterBuzz('その他')">📌 他</button>
+      </div>
     </div>
     <div id="buzzList"></div>
   </div>
@@ -346,12 +420,235 @@ textarea{width:100%;border:1.5px solid var(--blush);border-radius:10px;padding:1
       <div style="font-size:12px;color:var(--muted);margin-bottom:8px">WorkerのURLを変更する場合はこちら</div>
       <button onclick="resetWorker()" style="padding:9px 16px;background:var(--blush);border:none;border-radius:10px;font-size:12px;font-weight:700;color:var(--rose);cursor:pointer;font-family:inherit">🔄 URLをリセット</button>
     </div>
+    <div class="card">
+      <div class="card-title">🔐 Googleログイン設定</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:10px">
+        Google Cloud ConsoleでOAuth 2.0クライアントIDを作成し、下に入力してください。<br>
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--rose)">→ Google Cloud Console</a>
+      </div>
+      <label>Google Client ID</label>
+      <input type="text" id="googleClientId" placeholder="xxxxx.apps.googleusercontent.com" style="font-size:11px">
+      <button onclick="saveGoogleClientId()" style="width:100%;padding:10px;background:var(--rose);color:#fff;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">💾 Client IDを保存して再読み込み</button>
+    </div>
+    <div class="card">
+      <div class="card-title">💾 自動保存</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8;margin-bottom:8px">
+        入力内容は2秒後に自動保存されます。<br>テーマ・設定・メモなどが次回起動時に復元されます。
+      </div>
+      <button onclick="clearAutosave()" style="padding:9px 16px;background:var(--blush);border:none;border-radius:10px;font-size:12px;font-weight:700;color:var(--rose);cursor:pointer;font-family:inherit">🗑️ 自動保存データをクリア</button>
+    </div>
   </div>
 
 </div>
 
 <script>
-var workerUrl = 'https://meru-ai.unposted-nakai.workers.dev';
+// ===== Google ログイン =====
+var currentUser = JSON.parse(localStorage.getItem('meru_google_user') || 'null');
+
+function decodeJwt(token){
+  try {
+    var base64 = token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');
+    return JSON.parse(decodeURIComponent(atob(base64).split('').map(function(c){
+      return '%'+('00'+c.charCodeAt(0).toString(16)).slice(-2);
+    }).join('')));
+  } catch(e){ return null; }
+}
+
+function handleGoogleLogin(response){
+  var payload = decodeJwt(response.credential);
+  if(!payload){ alert('ログインに失敗しました'); return; }
+  currentUser = {
+    name: payload.name || '',
+    email: payload.email || '',
+    picture: payload.picture || '',
+    sub: payload.sub
+  };
+  localStorage.setItem('meru_google_user', JSON.stringify(currentUser));
+  showLoggedIn();
+}
+
+function showLoggedIn(){
+  document.getElementById('loginOverlay').classList.add('hidden');
+  var bar = document.getElementById('userBar');
+  bar.style.display = 'flex';
+  document.getElementById('userName').textContent = currentUser.name;
+  document.getElementById('userEmail').textContent = currentUser.email;
+  if(currentUser.picture){
+    document.getElementById('userAvatar').src = currentUser.picture;
+  }
+}
+
+function handleLogout(){
+  if(!confirm('ログアウトしますか？')) return;
+  currentUser = null;
+  localStorage.removeItem('meru_google_user');
+  document.getElementById('userBar').style.display = 'none';
+  document.getElementById('loginOverlay').classList.remove('hidden');
+  // Google の認証もリセット
+  if(window.google && google.accounts && google.accounts.id){
+    google.accounts.id.disableAutoSelect();
+  }
+}
+
+// 起動時チェック
+(function(){
+  if(currentUser && currentUser.sub){
+    showLoggedIn();
+  } else {
+    // Google Sign-In ボタンを初期化
+    initGoogleSignIn();
+  }
+})();
+
+function initGoogleSignIn(){
+  var clientId = '725078289889-hqvihgvkqatcnhl65qhe4n1aepd3ge71.apps.googleusercontent.com';
+  localStorage.setItem('meru_google_client_id', clientId);
+  {
+  // GIS ライブラリ読み込み待ち
+  if(window.google && google.accounts && google.accounts.id){
+    renderGoogleBtn(clientId);
+  } else {
+    window.addEventListener('load', function(){
+      var check = setInterval(function(){
+        if(window.google && google.accounts && google.accounts.id){
+          clearInterval(check);
+          renderGoogleBtn(clientId);
+        }
+      }, 200);
+      // 5秒でタイムアウト
+      setTimeout(function(){ clearInterval(check); }, 5000);
+    });
+  }
+}
+
+function renderGoogleBtn(clientId){
+  google.accounts.id.initialize({
+    client_id: clientId,
+    callback: handleGoogleLogin
+  });
+  google.accounts.id.renderButton(
+    document.getElementById('googleSignInBtn'),
+    { theme:'outline', size:'large', shape:'pill', text:'signin_with', locale:'ja', logo_alignment:'left' }
+  );
+}
+
+function saveAndInitLogin(){
+  var v = document.getElementById('loginClientId').value.trim();
+  if(!v){ alert('Client IDを入力してください'); return; }
+  localStorage.setItem('meru_google_client_id', v);
+  location.reload();
+}
+
+// ===== 自動保存 =====
+var autosaveTimer = null;
+var AUTOSAVE_KEY = 'meru_autosave_data';
+
+function showAutosaveToast(){
+  var t = document.getElementById('autosaveToast');
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 1800);
+}
+
+function autosaveAll(){
+  var data = {
+    theme: selectedTheme || '',
+    postType: getVal('postType'),
+    targetReader: getVal('targetReader'),
+    charLimit: getVal('charLimit'),
+    memo: getVal('memo'),
+    followerInput: getVal('followerInput'),
+    todayFollowers: getVal('todayFollowers'),
+    todayMemo: getVal('todayMemo'),
+    tgEmoji: document.getElementById('tgEmoji') ? document.getElementById('tgEmoji').classList.contains('on') : true,
+    tgHash: document.getElementById('tgHash') ? document.getElementById('tgHash').classList.contains('on') : true,
+    tgPersonal: document.getElementById('tgPersonal') ? document.getElementById('tgPersonal').classList.contains('on') : true,
+    savedAt: new Date().toISOString()
+  };
+  localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+  showAutosaveToast();
+}
+
+function getVal(id){
+  var el = document.getElementById(id);
+  return el ? el.value : '';
+}
+
+function setVal(id, val){
+  var el = document.getElementById(id);
+  if(el && val !== undefined && val !== null) el.value = val;
+}
+
+function restoreAutosave(){
+  var raw = localStorage.getItem(AUTOSAVE_KEY);
+  if(!raw) return;
+  try {
+    var d = JSON.parse(raw);
+    setVal('postType', d.postType);
+    setVal('targetReader', d.targetReader);
+    setVal('charLimit', d.charLimit);
+    setVal('memo', d.memo);
+    setVal('followerInput', d.followerInput);
+    setVal('todayFollowers', d.todayFollowers);
+    setVal('todayMemo', d.todayMemo);
+
+    // テーマ復元
+    if(d.theme){
+      var btns = document.querySelectorAll('.theme-btn');
+      btns.forEach(function(b){
+        var label = b.querySelector('.t-label');
+        if(label && label.textContent === d.theme){
+          pickTheme(b, d.theme);
+        }
+      });
+    }
+
+    // トグル復元
+    restoreToggle('tgEmoji', d.tgEmoji);
+    restoreToggle('tgHash', d.tgHash);
+    restoreToggle('tgPersonal', d.tgPersonal);
+
+    // フォロワー進捗更新
+    if(d.followerInput) updateProgress(d.followerInput);
+  } catch(e){}
+}
+
+function restoreToggle(id, val){
+  var el = document.getElementById(id);
+  if(!el) return;
+  if(val === true){ el.classList.add('on'); el.classList.remove('off'); }
+  else if(val === false){ el.classList.remove('on'); el.classList.add('off'); }
+}
+
+function scheduleAutosave(){
+  if(autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(autosaveAll, 2000);
+}
+
+// フォーム変更を監視して自動保存
+function initAutosave(){
+  var ids = ['postType','targetReader','charLimit','memo','followerInput','todayFollowers','todayMemo'];
+  ids.forEach(function(id){
+    var el = document.getElementById(id);
+    if(el){
+      el.addEventListener('input', scheduleAutosave);
+      el.addEventListener('change', scheduleAutosave);
+    }
+  });
+
+  // トグル変更も監視
+  ['tgEmoji','tgHash','tgPersonal'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el){
+      var orig = el.onclick;
+      el.onclick = function(){
+        if(orig) orig.call(this);
+        else tog(id);
+        scheduleAutosave();
+      };
+    }
+  });
+}
+var workerUrl = 'https://meru-ai.unposted-nakai.workers.dev'; // Worker作成後にURLを更新してください
 var selectedTheme = '';
 var currentPost = '';
 var postHistory = JSON.parse(localStorage.getItem('meru_hist2') || '[]');
@@ -388,7 +685,8 @@ function saveWorker(){
 function showWorkerOk(){
   var b = document.getElementById('workerBanner');
   b.className = 'worker-box ok';
-  b.innerHTML = '<strong>✅ サーバーに接続済み🔒 APIキーは安全に管理されています</strong><span class="w-change" onclick="resetWorker()">変更する</span>';
+  var host = getServerHost();
+  b.innerHTML = '<strong>✅ '+host+' に接続済み🔒</strong><span class="w-change" onclick="resetWorker()">変更する</span>';
 }
 
 function resetWorker(){
@@ -418,6 +716,7 @@ function pickTheme(el, theme){
   el.style.borderColor = 'var(--rose)';
   el.style.background = 'var(--blush)';
   selectedTheme = theme;
+  scheduleAutosave();
   // 視覚的フィードバック
   var labels = el.querySelectorAll('.t-label');
   document.querySelectorAll('.theme-btn .t-label').forEach(function(l){ l.style.color = ''; });
@@ -445,10 +744,19 @@ function showErr(msg){
 }
 function hideErr(){ document.getElementById('errBox').style.display = 'none'; }
 
+function getServerHost(){
+  try { return new URL(workerUrl).hostname; } catch(e){ return 'AI'; }
+}
+function getServerName(){
+  return 'Cloud';
+}
+
 async function generate(){
   if(!workerUrl){ showErr('先にWorkerのURLを設定してください⚙️'); return; }
   if(!selectedTheme){ showErr('テーマを選んでください🌸'); return; }
   hideErr();
+
+  document.getElementById('loadingMsg').textContent = getServerName() + ' がめるさんらしい言葉を考えています…';
 
   var postType  = document.getElementById('postType').value;
   var target    = document.getElementById('targetReader').value;
@@ -457,9 +765,9 @@ async function generate(){
   var useEmoji  = document.getElementById('tgEmoji').classList.contains('on');
   var useHash   = document.getElementById('tgHash').classList.contains('on');
   var usePers   = document.getElementById('tgPersonal').classList.contains('on');
-  var charGuide = charLim==='short'?'80〜120文字':charLim==='medium'?'140〜200文字':'250〜350文字';
+  var charGuide = charLim==='short'?'80〜120文字':charLim==='medium'?'140〜200文字':charLim==='xlong'?'500〜700文字':charLim==='max'?'800〜1000文字':'250〜350文字';
 
-  var prompt = 'アカウント情報：めるさん／垣抜けママ研究所。2児のワーママ。-16kgリバウンドなし。毎日10分の自分時間確保。AIを活用して育児・仕事・美容を両立。\n\nポスト条件：\nテーマ：'+selectedTheme+'\n投稿タイプ：'+postType+'\nターゲット：'+target+'\n文字数：'+charGuide+'\n絵文字：'+(useEmoji?'2〜4個使う':'使わない')+'\n語尾：タメ口（〜だよ、〜してる）\n体験談ベース：'+(usePers?'はい':'いいえ')+(memo?'\n今日のメモ：'+memo:'')+'\nハッシュタグ：'+(useHash?'末尾に2〜3個':'なし')+getBuzzPrompt()+'\n\n制約：めるさん本人が書いた自然な文体。共感ファースト。最後にリプ・いいね誘導。ポスト本文のみ返答。';
+  var prompt = 'アカウント情報：めるさん／垣抜けママ研究所。2児のワーママ。-16kgリバウンドなし。毎日10分の自分時間確保。AIを活用して育児・仕事・美容を両立。\n\nポスト条件：\nテーマ：'+selectedTheme+'\n投稿タイプ：'+postType+'\nターゲット：'+target+'\n文字数：'+charGuide+'\n絵文字：'+(useEmoji?'2〜4個使う':'使わない')+'\n語尾：大人カジュアル（〜してる、〜だよね、〜なんだけど、〜していこう）\n体験談ベース：'+(usePers?'はい':'いいえ')+(memo?'\n今日のメモ：'+memo:'')+'\nハッシュタグ：'+(useHash?'末尾に2〜3個':'なし')+getBuzzPrompt()+'\n\n制約：めるさん本人が書いた自然な文体。共感ファースト。最後にリプ・いいね誘導。ポスト本文のみ返答。';
 
   document.getElementById('genBtn').disabled = true;
   document.getElementById('loading').classList.add('show');
@@ -543,13 +851,15 @@ function loadHist(id){
 
 // ===== バズ投稿学習機能 =====
 var buzzPosts = JSON.parse(localStorage.getItem('meru_buzz') || '[]');
+var buzzFilter = 'all';
 
 function addBuzz(){
   var text = document.getElementById('buzzInput').value.trim();
   var likes = document.getElementById('buzzLikes').value;
+  var theme = document.getElementById('buzzTheme').value;
   if(!text){ alert('投稿内容を入力してください'); return; }
-  if(buzzPosts.length >= 20){ alert('最大20件まで登録できます。古い投稿を削除してください。'); return; }
-  buzzPosts.push({ id: Date.now(), text: text, likes: parseInt(likes)||0 });
+  if(buzzPosts.length >= 120){ alert('最大120件まで登録できます。古い投稿を削除してください。'); return; }
+  buzzPosts.push({ id: Date.now(), text: text, likes: parseInt(likes)||0, theme: theme });
   localStorage.setItem('meru_buzz', JSON.stringify(buzzPosts));
   document.getElementById('buzzInput').value = '';
   document.getElementById('buzzLikes').value = '';
@@ -562,35 +872,81 @@ function deleteBuzz(id){
   renderBuzz();
 }
 
+function filterBuzz(theme){
+  buzzFilter = theme;
+  renderBuzz();
+}
+
 function renderBuzz(){
   var el = document.getElementById('buzzList');
   var count = document.getElementById('buzzCount');
-  if(count) count.textContent = buzzPosts.length + ' / 20件';
+  if(count) count.textContent = buzzPosts.length + ' / 120件';
   if(!el) return;
-  if(!buzzPosts.length){
-    el.innerHTML = '<div style="text-align:center;padding:30px 20px;color:var(--muted);font-size:12px">まだ登録されたバズ投稿はありません</div>';
+
+  var filtered = buzzFilter === 'all' ? buzzPosts : buzzPosts.filter(function(b){ return b.theme === buzzFilter; });
+
+  if(!filtered.length){
+    el.innerHTML = '<div style="text-align:center;padding:30px 20px;color:var(--muted);font-size:12px">'+(buzzFilter==='all'?'まだ登録されたバズ投稿はありません':'「'+buzzFilter+'」のバズ投稿はまだありません')+'</div>';
     return;
   }
-  el.innerHTML = buzzPosts.map(function(b){
+
+  var themeIcons = {'美容習慣':'💄','ダイエット':'🌿','時間術':'⏰','AI活用':'🤖','ワーママ本音':'👶','マインド':'✨','その他':'📌'};
+
+  el.innerHTML = filtered.map(function(b){
+    var icon = themeIcons[b.theme] || '📌';
+    var themeLabel = b.theme || 'その他';
     return '<div style="background:var(--white);border-radius:12px;padding:12px;margin-bottom:8px;border:1px solid var(--blush)">'
-      +(b.likes ? '<span style="display:inline-block;background:var(--blush);color:var(--rose);font-size:10px;padding:2px 7px;border-radius:6px;font-weight:700;margin-bottom:6px">❤️ '+b.likes+'いいね</span>' : '')
+      +'<div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">'
+      +'<span style="display:inline-block;background:var(--blush);color:var(--rose);font-size:10px;padding:2px 7px;border-radius:6px;font-weight:700">'+icon+' '+themeLabel+'</span>'
+      +(b.likes ? '<span style="display:inline-block;background:var(--blush);color:var(--rose);font-size:10px;padding:2px 7px;border-radius:6px;font-weight:700">❤️ '+b.likes+'いいね</span>' : '')
+      +'</div>'
       +'<div style="font-size:12px;line-height:1.7;white-space:pre-wrap">'+b.text+'</div>'
       +'<button onclick="deleteBuzz('+b.id+')" style="margin-top:8px;padding:5px 12px;background:var(--blush);border:none;border-radius:8px;font-size:11px;color:var(--rose);cursor:pointer;font-weight:700;font-family:inherit">🗑️ 削除</button>'
       +'</div>';
   }).join('');
 }
 
-// バズ投稿をプロンプトに組み込む
+// バズ投稿をプロンプトに組み込む（生成テーマと同じテーマを優先）
 function getBuzzPrompt(){
   if(!buzzPosts.length) return '';
-  var sorted = buzzPosts.slice().sort(function(a,b){ return b.likes - a.likes; }).slice(0, 5);
+  // 選択テーマと同じテーマのバズ投稿を優先
+  var sameTh = buzzPosts.filter(function(b){ return b.theme === selectedTheme; });
+  var otherTh = buzzPosts.filter(function(b){ return b.theme !== selectedTheme; });
+  var sorted = sameTh.sort(function(a,b){ return b.likes - a.likes; }).concat(otherTh.sort(function(a,b){ return b.likes - a.likes; })).slice(0, 5);
   return '\n\n【学習済みバズ投稿（このパターンを参考に）】\n' + sorted.map(function(b,i){
-    return '例'+(i+1)+(b.likes?'（'+b.likes+'いいね）':'')+'：\n'+b.text;
+    return '例'+(i+1)+'['+b.theme+']'+(b.likes?'（'+b.likes+'いいね）':'')+'：\n'+b.text;
   }).join('\n\n');
 }
 
 // 初期化
 (function(){ renderBuzz(); })();
+
+// ===== 自動保存の復元と初期化 =====
+(function(){
+  restoreAutosave();
+  initAutosave();
+
+  // Google Client ID を復元して設定に反映
+  var savedClientId = localStorage.getItem('meru_google_client_id');
+  if(savedClientId){
+    var el = document.getElementById('googleClientId');
+    if(el) el.value = savedClientId;
+  }
+})();
+
+function saveGoogleClientId(){
+  var val = document.getElementById('googleClientId').value.trim();
+  if(!val){ alert('Client IDを入力してください'); return; }
+  localStorage.setItem('meru_google_client_id', val);
+  alert('保存しました。ページを再読み込みします。');
+  location.reload();
+}
+
+function clearAutosave(){
+  if(!confirm('自動保存データをクリアしますか？')) return;
+  localStorage.removeItem(AUTOSAVE_KEY);
+  alert('クリアしました');
+}
 
 // ===== 今日タブ（Claude AI タスク生成） =====
 var todayDateKey = new Date().toLocaleDateString('ja-JP');
@@ -612,6 +968,7 @@ async function generateTodayTasks(){
   var prompt = 'めるさん（垣抜けママ研究所）のXアカウント運用のコーチです。\n\n【状況】\n今日：'+dayName+'\nフォロワー数：'+followers+'人\n最近の投稿：'+recentPosts+'\n登録済みバズ投稿：'+buzzCount+'件\n目標：3ヶ月でX収益化（フォロワー500人・500万インプレ）\n\n【依頼】\n今日1日でやるべきX運用タスクを5〜8個提案してください。具体的で実行しやすい内容にしてください。曜日や状況を考慮してください（例：月曜なら週の計画、金曜なら週の振り返りなど）。\n\n【出力形式】JSONのみ返答。説明文不要。[{"task":"タスク内容","icon":"絵文字","priority":"high/medium/low"}]の形式で返答。';
 
   document.getElementById('aiTaskBtn').disabled = true;
+  document.getElementById('aiTaskLoadingMsg').textContent = getServerName() + ' が考えています…';
   document.getElementById('aiTaskLoading').style.display = 'block';
   document.getElementById('aiTaskCard').style.display = 'none';
 
