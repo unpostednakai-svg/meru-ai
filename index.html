@@ -503,21 +503,25 @@ function handleLogout(){
 function initGoogleSignIn(){
   var clientId = '725078289889-hqvihgvkqatcnhl65qhe4n1aepd3ge71.apps.googleusercontent.com';
   localStorage.setItem('meru_google_client_id', clientId);
-  {
-  // GIS ライブラリ読み込み待ち
-  if(window.google && google.accounts && google.accounts.id){
-    renderGoogleBtn(clientId);
-  } else {
-    window.addEventListener('load', function(){
+
+  function tryRender(){
+    if(window.google && google.accounts && google.accounts.id){
+      renderGoogleBtn(clientId);
+    } else {
       var check = setInterval(function(){
         if(window.google && google.accounts && google.accounts.id){
           clearInterval(check);
           renderGoogleBtn(clientId);
         }
       }, 200);
-      // 5秒でタイムアウト
-      setTimeout(function(){ clearInterval(check); }, 5000);
-    });
+      setTimeout(function(){ clearInterval(check); }, 15000);
+    }
+  }
+
+  if(document.readyState === 'complete'){
+    tryRender();
+  } else {
+    window.addEventListener('load', tryRender);
   }
 }
 
