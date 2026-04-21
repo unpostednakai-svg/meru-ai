@@ -679,7 +679,7 @@ async function generateCarryover() {
   const tMon = tomorrow.getMonth() + 1;
 
   const prompt = `あなたは「める｜AI×垣抜けワーママ」のXアカウント運営コーチです。
-以下の情報を元に、明日（${tMon}月${tomorrow.getDate()}日・${tDowStr}曜日）にやるべき具体的タスクリストを生成してください。
+以下の情報を元に、明日（${tMon}月${tomorrow.getDate()}日・${tDowStr}曜日）にやるべき具体的タスクリストを「## めるの${tMon}月${tomorrow.getDate()}日（${tDowStr}曜日）タスクリスト ✨」というタイトルで生成してください。
 
 【現在のフェーズ】${ph.name}（${ph.months.join('・')}ヶ月目）
 【今月のKPI目標】フォロワー${kpi.followers.toLocaleString()}人 / LINE${kpi.line}人 / 月収¥${kpi.income.toLocaleString()}
@@ -698,7 +698,7 @@ ${note || '（入力なし）'}
 以下の形式で、明日の優先タスクを5〜7個リストアップしてください。
 引き継ぎが必要なものは⚡、定番タスクは✅、特別タスクは🎯で始めてください。
 各タスクに【所要時間】と【ポイント】を簡潔に添えてください。
-最後に一言、めめへの励ましメッセージを🌸で締めくくってください。
+最後に一言、めるちゃん（必ず「めるちゃん」と呼んでください）への励ましメッセージを🌸で締めくくってください。
 回答は日本語で、絵文字を使ったフレンドリーなトーンで書いてください。`;
 
   btn.classList.add('loading');
