@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="める手帳AI">
+<title>める｜ロードマップカレンダー AI版</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --pk1: #D4718E;       /* アクセントピンク */
+  --pk2: #E896AD;       /* ミディアムピンク */
+  --pk3: #F5C0D0;       /* 淡いピンク */
+  --pk4: #FAE0E8;       /* 薄いピンク背景 */
+  --pk5: #FDF0F4;       /* 極淡ピンク */
+  --pk6: #FFF7F9;       /* ほぼ白ピンク */
+  --rose: #FCEDF2;      /* ローズホワイト */
+  --blush: #F8D8E4;     /* ブラッシュ */
+  --text: #5A2D40;
+  --text-mid: #8A5060;
+  --text-muted: #C090A0;
+  --white: #fff;
+  --shadow: rgba(212,113,142,0.12);
+  --shadow2: rgba(212,113,142,0.20);
+}
+body {
+  font-family: 'Zen Maru Gothic','Hiragino Sans',sans-serif;
+  background: #FEF5F7;
+  min-height: 100vh;
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ======== HEADER ======== */
+.header {
+  background: linear-gradient(160deg, #F5C0D0 0%, #FAD4E2 40%, #F5C0D0 100%);
+  padding: 16px 14px 12px;
+  text-align: center;
+  box-shadow: 0 3px 20px var(--shadow2);
+  position: relative;
+}
+.header-deco { font-size: 8px; letter-spacing: 4px; color: var(--pk1); opacity: 0.5; }
+.header-title { font-size: 16px; font-weight: 700; color: var(--pk1); margin: 3px 0 2px; letter-spacing: 0.3px; }
+.header-sub { font-size: 10px; color: var(--text-mid); opacity: 0.8; }
+.ai-badge {
+  position: absolute; top: 13px; right: 12px;
+  background: linear-gradient(135deg, var(--pk1), #C05878);
+  color: white; font-size: 9px; font-weight: 700;
+  padding: 3px 8px; border-radius: 20px; letter-spacing: 0.4px;
+  box-shadow: 0 2px 8px rgba(212,113,142,0.35);
+}
+
+/* ======== NAV ======== */
+.nav {
+  display: flex; align-items: center; padding: 8px 12px;
+  background: var(--pk6); border-bottom: 1.5px solid var(--pk4);
+  position: sticky; top: 0; z-index: 60; gap: 6px;
+}
+.nav-btn {
+  background: var(--pk4); border: none; border-radius: 50%;
+  width: 34px; height: 34px; cursor: pointer; font-size: 17px;
+  color: var(--pk1); display: flex; align-items: center; justify-content: center;
+  transition: background 0.18s;
+}
+.nav-btn:active { background: var(--pk3); }
+.nav-today-btn {
+  background: var(--pk2); border: none; border-radius: 16px;
+  padding: 5px 11px; cursor: pointer; font-size: 10px;
+  font-weight: 700; color: white; font-family: inherit;
+  box-shadow: 0 2px 6px rgba(232,150,173,0.4);
+  transition: opacity 0.18s;
+}
+.nav-today-btn:active { opacity: 0.8; }
+.nav-center { flex: 1; text-align: center; }
+.nav-date { font-size: 18px; font-weight: 700; color: var(--pk1); }
+.nav-year { font-size: 10px; color: var(--text-muted); }
+
+/* ======== PHASE BAR ======== */
+.phase-bar {
+  margin: 8px 12px 2px; padding: 10px 14px; border-radius: 16px;
+  display: flex; align-items: center; gap: 8px; font-weight: 700;
+}
+.pbg-phase1 { background: linear-gradient(90deg,#FDE8F0,#FFF6F9); border:1.5px solid var(--pk3); }
+.pbg-phase2 { background: linear-gradient(90deg,#FDE8F0,#FFF6F9); border:1.5px solid var(--pk3); }
+.pbg-phase3 { background: linear-gradient(90deg,#FDE8F0,#FFF6F9); border:1.5px solid var(--pk3); }
+.pbg-phase4 { background: linear-gradient(90deg,#FDE8F0,#FFF6F9); border:1.5px solid var(--pk3); }
+.phase-icon { font-size: 20px; }
+.phase-info { flex: 1; }
+.phase-name { font-size: 12px; color: var(--text); }
+.phase-target { font-size: 10px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
+.phase-month {
+  background: white; border-radius: 9px; padding: 3px 9px;
+  font-size: 10px; text-align: center; color: var(--text-muted); line-height: 1.6;
+  border: 1px solid var(--pk4);
+}
+.phase-month strong { color: var(--pk1); }
+
+/* ======== KPI GRID ======== */
+.kpi-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 5px; padding: 5px 12px 2px;
+}
+.kpi-card {
+  background: white; border-radius: 11px;
+  padding: 7px 4px; text-align: center;
+  border: 1px solid var(--pk4);
+  box-shadow: 0 1px 6px var(--shadow);
+}
+.kpi-icon { font-size: 15px; }
+.kpi-label { font-size: 8px; color: var(--text-muted); margin-top: 1px; }
+.kpi-val { font-size: 11px; font-weight: 700; color: var(--pk1); }
+.kpi-sub { font-size: 8px; color: var(--text-muted); }
+
+/* ======== MSG CARD ======== */
+.msg-card {
+  background: linear-gradient(135deg, #FDE8F0, #FAF0F5);
+  border-radius: 14px; padding: 11px 14px;
+  margin: 8px 12px 5px; font-size: 12px; line-height: 1.85;
+  color: var(--text-mid); border: 1px solid var(--pk3);
+  position: relative;
+}
+.msg-icon { position: absolute; top: -9px; right: 12px; font-size: 18px; }
+
+/* ======== AI CARRYOVER SECTION ======== */
+.ai-section {
+  margin: 6px 12px;
+  border-radius: 16px; overflow: hidden;
+  background: white; box-shadow: 0 2px 14px var(--shadow2);
+  border: 1.5px solid var(--pk3);
+}
+.ai-section-head {
+  background: linear-gradient(135deg, #FCE4EE, #FDEEF4);
+  padding: 10px 13px; display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
+.ai-section-head span { flex: 1; color: var(--pk1); }
+.ai-badge-sm {
+  background: linear-gradient(135deg, var(--pk1), #C05878);
+  color: white; font-size: 8px; font-weight: 700;
+  padding: 2px 7px; border-radius: 10px;
+  box-shadow: 0 1px 5px rgba(212,113,142,0.3);
+}
+.ai-body { padding: 8px 12px 10px; }
+.ai-body.hidden { display: none; }
+.ai-generate-btn {
+  width: 100%; padding: 10px; border: none; border-radius: 11px;
+  background: linear-gradient(135deg, var(--pk2), var(--pk1));
+  color: white; font-family: inherit; font-size: 12px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-bottom: 8px;
+  box-shadow: 0 3px 12px rgba(212,113,142,0.35);
+  transition: opacity 0.18s;
+}
+.ai-generate-btn:active { opacity: 0.82; }
+.ai-generate-btn.loading { opacity: 0.65; pointer-events: none; }
+.ai-result {
+  background: linear-gradient(135deg, #FEF0F5, #FFF7F9);
+  border-radius: 11px; padding: 10px 12px;
+  font-size: 12px; line-height: 1.85; color: var(--text);
+  border: 1px solid var(--pk3); white-space: pre-wrap;
+  min-height: 40px;
+}
+.ai-result-placeholder {
+  color: var(--text-muted); font-size: 11px; text-align: center;
+  padding: 6px 0;
+}
+.ai-carryover-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 6px 8px; background: var(--pk5); border-radius: 8px;
+  margin-bottom: 5px; font-size: 12px; border: 1px solid var(--pk3);
+}
+.ai-carryover-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.ai-carryover-text { flex: 1; color: var(--text); line-height: 1.6; }
+.ai-input-wrap { margin-bottom: 8px; }
+.ai-input-label { font-size: 10px; color: var(--text-mid); margin-bottom: 3px; font-weight: 700; }
+.ai-textarea {
+  width: 100%; padding: 8px 10px; border: 1.5px solid var(--pk3);
+  border-radius: 9px; font-family: inherit; font-size: 11px; line-height: 1.6;
+  color: var(--text); resize: none; background: var(--pk6);
+  min-height: 70px;
+}
+.ai-textarea:focus { outline: none; border-color: var(--pk2); }
+
+/* ======== SECTIONS ======== */
+.sec {
+  margin: 6px 12px;
+  background: white; border-radius: 16px;
+  overflow: hidden; box-shadow: 0 2px 10px var(--shadow);
+  border: 1px solid var(--pk4);
+}
+.sec-head {
+  padding: 10px 13px; display: flex; align-items: center;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+  background: linear-gradient(90deg, var(--pk6), white);
+}
+.sec-head span:first-child { flex: 1; color: var(--text); }
+.sec-arrow {
+  font-size: 11px; transition: transform 0.25s;
+  display: inline-block; color: var(--pk2);
+}
+.sec-arrow.closed { transform: rotate(-90deg); }
+.sec-body { padding: 2px 12px 10px; }
+.sec-body.hidden { display: none; }
+
+/* ======== TASKS ======== */
+.task {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid var(--pk5);
+  font-size: 12px; line-height: 1.55;
+}
+.task:last-child { border-bottom: none; }
+.task.hi { padding: 7px 9px; background: var(--pk5); border-radius: 9px; margin-bottom: 3px; border-bottom: none; }
+.task.dim { opacity: 0.5; }
+.task.carryover { background: #FFF5E8; border-radius: 9px; padding: 6px 9px; margin-bottom: 3px; border-bottom: none; border: 1px dashed #F0C890; }
+.task-check {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--pk3); background: white;
+  cursor: pointer; flex-shrink: 0; display: flex;
+  align-items: center; justify-content: center;
+  font-size: 10px; color: white; margin-top: 1px;
+  transition: all 0.2s; -webkit-tap-highlight-color: transparent;
+}
+.task-check.done { background: var(--pk2); border-color: var(--pk2); }
+.task-label { flex: 1; color: var(--text); transition: color 0.2s; }
+.task-label.done { color: var(--text-muted); text-decoration: line-through; }
+.task-dow {
+  font-size: 9px; padding: 2px 6px; border-radius: 8px;
+  background: var(--pk4); color: var(--pk1); font-weight: 700;
+  flex-shrink: 0; white-space: nowrap; margin-top: 2px;
+}
+.tag {
+  font-size: 9px; padding: 2px 6px; border-radius: 7px;
+  flex-shrink: 0; font-weight: 700; white-space: nowrap; margin-top: 2px;
+}
+.time-badge {
+  font-size: 9px; color: var(--text-muted); background: var(--pk4);
+  padding: 2px 6px; border-radius: 7px; flex-shrink: 0;
+  white-space: nowrap; margin-top: 2px;
+}
+.carry-badge {
+  font-size: 9px; padding: 2px 6px; border-radius: 7px;
+  flex-shrink: 0; font-weight: 700; white-space: nowrap; margin-top: 2px;
+  background: #FFF0D0; color: #B07830;
+}
+
+/* ======== TAGS - all pink-toned ======== */
+/* override tag colors to soft pink palette */
+
+/* ======== THEME CARDS ======== */
+.theme-card {
+  background: var(--pk6); border-radius: 11px;
+  padding: 9px 11px; margin-bottom: 6px;
+  border: 1px solid var(--pk4);
+}
+.theme-time { font-size: 9px; color: var(--text-muted); margin-bottom: 2px; }
+.theme-name { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.theme-hint { font-size: 11px; color: var(--text-mid); }
+.sun-special {
+  background: linear-gradient(135deg, #FDE8F0, #FAF0F5);
+  border-radius: 12px; padding: 9px 12px; margin: 4px 0 6px; font-size: 11px;
+  border: 1px solid var(--pk3);
+}
+.sun-special strong { color: var(--pk1); display: block; margin-bottom: 3px; }
+
+/* ======== PROGRESS ======== */
+.progress-wrap { margin: 6px 12px 10px; }
+.progress-head {
+  font-size: 11px; color: var(--text-mid); margin-bottom: 5px;
+  display: flex; justify-content: space-between;
+}
+.progress-head strong { color: var(--pk1); }
+.progress-track {
+  height: 10px; background: var(--pk4);
+  border-radius: 10px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 10px;
+  background: linear-gradient(90deg, var(--pk3), var(--pk2));
+  transition: width 0.6s ease;
+}
+
+/* ======== FOOTER ======== */
+.footer {
+  text-align: center; padding: 4px 12px 32px;
+  font-size: 9px; color: var(--text-muted);
+}
+
+/* ======== SPINNER ======== */
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner {
+  width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: white; border-radius: 50%;
+  animation: spin 0.7s linear infinite; display: inline-block;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-deco">✦ MERU ROADMAP CALENDAR ✦</div>
+  <div class="header-title">める｜月30万円ロードマップ手帳</div>
+  <div class="header-sub">垣抜けママ研究所 × AIアシスタント</div>
+  <div class="ai-badge">✨ AI搭載</div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn" id="prevBtn">‹</button>
+  <button class="nav-today-btn" id="todayBtn">今日</button>
+  <div class="nav-center">
+    <div class="nav-date" id="navDate"></div>
+    <div class="nav-year" id="navYear"></div>
+  </div>
+  <button class="nav-btn" id="nextBtn">›</button>
+</div>
+
+<!-- Phase bar -->
+<div class="phase-bar pbg-phase1" id="phaseBar">
+  <div class="phase-icon" id="phaseIcon"></div>
+  <div class="phase-info">
+    <div class="phase-name" id="phaseName"></div>
+    <div class="phase-target" id="phaseTarget"></div>
+  </div>
+  <div class="phase-month">
+    <div id="phaseMonth"></div>
+    <strong id="phaseMonthLabel"></strong>
+  </div>
+</div>
+
+<!-- KPI -->
+<div class="kpi-grid" id="kpiGrid"></div>
+
+<!-- Message -->
+<div class="msg-card">
+  <div class="msg-icon">🌸</div>
+  <div id="msgText"></div>
+</div>
+
+<!-- AI 翌日引き継ぎセクション -->
+<div class="ai-section" id="aiSection">
+  <div class="ai-section-head" onclick="toggleAiSec()">
+    <span>🤖 AI翌日引き継ぎアシスタント</span>
+    <span class="ai-badge-sm">Claude AI</span>
+    <span class="sec-arrow" id="aiArrow">▾</span>
+  </div>
+  <div class="ai-body" id="aiBody">
+    <div class="ai-input-wrap">
+      <div class="ai-input-label">📝 今日できなかったこと・今日の状況（任意）</div>
+      <textarea class="ai-textarea" id="todayNote" placeholder="例：夜投稿が作れなかった、子どもが発熱で朝投稿できなかった、プロフ変更が途中まで…など"></textarea>
+    </div>
+    <button class="ai-generate-btn" id="aiBtn" onclick="generateCarryover()">
+      <span>✨ AIに明日のタスクを生成してもらう</span>
+    </button>
+    <div class="ai-result" id="aiResult">
+      <div class="ai-result-placeholder">↑ ボタンを押すとAIが今日の状況を読み取り、<br/>明日やるべきことを自動生成します✨</div>
+    </div>
+  </div>
+</div>
+
+<!-- 今日のテーマ -->
+<div class="sec">
+  <div class="sec-head" onclick="toggleSec(this)">
+    <span>📌 今日の投稿テーマ</span>
+    <span class="sec-arrow">▾</span>
+  </div>
+  <div class="sec-body" id="themeSec"></div>
+</div>
+
+<!-- 今日の引き継ぎタスク（前日のAI判定） -->
+<div class="sec" id="carryoverSec" style="display:none">
+  <div class="sec-head" onclick="toggleSec(this)" style="background:linear-gradient(90deg,#FFFCE8,#FFF)">
+    <span>⚡ 引き継ぎタスク（前日から）</span>
+    <span class="sec-arrow">▾</span>
+  </div>
+  <div class="sec-body" id="carryoverBody"></div>
+</div>
+
+<!-- 毎日タスク -->
+<div class="sec">
+  <div class="sec-head" onclick="toggleSec(this)">
+    <span>✅ 毎日のタスク</span>
+    <span class="sec-arrow">▾</span>
+  </div>
+  <div class="sec-body" id="dailySec"></div>
+</div>
+
+<!-- 週次タスク -->
+<div class="sec">
+  <div class="sec-head" onclick="toggleSec(this)">
+    <span>📅 週次タスク</span>
+    <span class="sec-arrow">▾</span>
+  </div>
+  <div class="sec-body" id="weeklySec"></div>
+</div>
+
+<!-- 月次タスク -->
+<div class="sec" id="monthlySec">
+  <div class="sec-head" onclick="toggleSec(this)">
+    <span id="monthlyTitle">📆 月次タスク</span>
+    <span class="sec-arrow">▾</span>
+  </div>
+  <div class="sec-body" id="monthlyBody"></div>
+</div>
+
+<!-- マイルストーン -->
+<div class="sec">
+  <div class="sec-head" onclick="toggleSec(this)">
+    <span id="msTitle">🚩 フェーズ マイルストーン</span>
+    <span class="sec-arrow closed">▾</span>
+  </div>
+  <div class="sec-body hidden" id="msSec"></div>
+</div>
+
+<!-- 進捗バー -->
+<div class="progress-wrap">
+  <div class="progress-head">
+    <span>今日の進捗</span>
+    <strong id="progressText">0/0 (0%)</strong>
+  </div>
+  <div class="progress-track">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+</div>
+
+<div class="footer">める｜AI×垣抜けワーママ ／ 月30万円ロードマップ AI版 2026 🌸</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+const PHASES = [
+  { id:1, name:'① 基盤構築期', followers:'0→1,000人', income:'0→1万円', color:'phase1', icon:'🌱', months:[4,5,6] },
+  { id:2, name:'② エンゲ強化期', followers:'1,000→5,000人', income:'1→5万円', color:'phase2', icon:'🌿', months:[7,8,9] },
+  { id:3, name:'③ 収益化本格期', followers:'5,000→1万人', income:'5→15万円', color:'phase3', icon:'🌸', months:[10,11,12] },
+  { id:4, name:'④ 安定拡大期', followers:'1万→2万人', income:'15→30万円', color:'phase4', icon:'🌟', months:[1,2,3] },
+];
+const KPI = {
+  4:{followers:300,impressions:'30万',line:10,income:0},
+  5:{followers:600,impressions:'80万',line:30,income:3000},
+  6:{followers:1000,impressions:'150万',line:80,income:10000},
+  7:{followers:2000,impressions:'200万',line:150,income:20000},
+  8:{followers:3500,impressions:'250万',line:250,income:30000},
+  9:{followers:5000,impressions:'300万',line:400,income:50000},
+  10:{followers:6500,impressions:'350万',line:700,income:80000},
+  11:{followers:8000,impressions:'400万',line:1000,income:120000},
+  12:{followers:10000,impressions:'450万',line:1500,income:180000},
+  1:{followers:13000,impressions:'500万',line:2000,income:230000},
+  2:{followers:16000,impressions:'550万',line:2500,income:270000},
+  3:{followers:20000,impressions:'600万',line:3000,income:300000},
+};
+const THEMES = {
+  0:{theme:'週まとめ/翌週予告',hint:'翌週予告・振り返り・バズ狙い投稿'},
+  1:{theme:'美容テク',hint:'時短メイク・スキンケア・垢抜け'},
+  2:{theme:'ダイエット',hint:'仕組み・食事ルール・停滞期対策'},
+  3:{theme:'共感ツイート',hint:'ワーママあるある・共感型投稿'},
+  4:{theme:'AI活用',hint:'ChatGPT・時間術・家事自動化'},
+  5:{theme:'ビフォーアフター',hint:'体験談・変化の記録・渾身の1本'},
+  6:{theme:'交流投稿',hint:'問いかけ・フォロワーと繋がる'},
+};
+const DAYS = ['日','月','火','水','木','金','土'];
+const MONS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const TAGS = {
+  beauty:{bg:'#FDE8F0',c:'#D4718E',l:'美容'},
+  diet:{bg:'#FAE8EE',c:'#C05878',l:'ダイエット'},
+  ai:{bg:'#F8E0EA',c:'#B84870',l:'AI活用'},
+  sns:{bg:'#FDE4EC',c:'#D4718E',l:'SNS'},
+  line:{bg:'#FCE8F0',c:'#C86888',l:'LINE'},
+  affil:{bg:'#FAEAEF',c:'#C07888',l:'アフィリ'},
+};
+const SK = 'meru-smart-cal-v2';
+
+// ============================================================
+// STATE
+// ============================================================
+function dkey(d) { return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; }
+function gp(m) { return PHASES.find(p => p.months.includes(m)) || PHASES[0]; }
+const START_DATE = new Date(2026, 3, 22);
+function isToday(d) {
+  const t = new Date();
+  // 実際の今日か、スタート日（4/22）の場合は「今日」表示
+  const isActualToday = d.getDate()===t.getDate() && d.getMonth()===t.getMonth() && d.getFullYear()===t.getFullYear();
+  const isStartDay = d.getDate()===22 && d.getMonth()===3 && d.getFullYear()===2026;
+  return isActualToday || isStartDay;
+}
+
+let cur = (function() {
+  const start = new Date(2026, 3, 22); // 4月22日スタート
+  const today = new Date(); today.setHours(0,0,0,0);
+  // 今日が4/22以降なら今日、それより前なら4/22
+  return today >= start ? today : start;
+})();
+let store = {};
+
+function loadStore() {
+  try {
+    const s = localStorage.getItem(SK);
+    if (s) store = JSON.parse(s);
+  } catch(e) { store = {}; }
+}
+function saveStore() {
+  try { localStorage.setItem(SK, JSON.stringify(store)); } catch(e) {}
+}
+function getDay(dk) {
+  if (!store[dk]) store[dk] = {};
+  return store[dk];
+}
+
+// ============================================================
+// PHASE MILESTONES
+// ============================================================
+function gms(id) {
+  if (id===1) return [
+    {key:'ms1',label:'✅ プロフィールを推奨案Aで書き直す（1行目フック変更）',tag:'sns'},
+    {key:'ms2',label:'✅ 固定ポストを黄金テンプレで作成・固定設置',tag:'sns'},
+    {key:'ms3',label:'✅ LINE公式開設＋7日間垢抜けPDF特典を設置',tag:'line'},
+    {key:'ms4',label:'✅ Xプレミアム契約（月980円・収益化条件解放）',tag:'sns'},
+    {key:'ms5',label:'✅ 美容カテゴリの看板投稿を週2本必ず投下',tag:'beauty'},
+    {key:'ms6',label:'✅ 上位10アカウントを毎日分析・型を再現',tag:'sns'},
+  ];
+  if (id===2) return [
+    {key:'ms1',label:'✅ ASP登録（もしもアフィ・A8.net・楽天・Amazon）',tag:'affil'},
+    {key:'ms2',label:'✅ 楽天ROOMを開設・紹介商品5〜10本登録',tag:'affil'},
+    {key:'ms3',label:'✅ 低単価note（980円）1本リリース',tag:'line'},
+    {key:'ms4',label:'✅ 週1回「教育系」投稿（価値観教育）を追加',tag:'sns'},
+    {key:'ms5',label:'✅ LINEにプロフ・固定・投稿末尾の3箇所に導線設置',tag:'line'},
+  ];
+  if (id===3) return [
+    {key:'ms1',label:'✅ Brain商品（4,980円）の企画・構成を作成',tag:'line'},
+    {key:'ms2',label:'✅ LINEクローズド販売（限定10名・特別価格3,980円）',tag:'line'},
+    {key:'ms3',label:'✅ 美容家電レビュー投稿を週3本に増量',tag:'affil'},
+    {key:'ms4',label:'✅ プロフにメール窓口を明記＋案件受付追記',tag:'sns'},
+    {key:'ms5',label:'✅ 口コミ3〜5件収集→LP・サムネ改善',tag:'line'},
+  ];
+  return [
+    {key:'ms1',label:'✅ 高単価商品（9,800円）またはサブスクコミュニティ開発',tag:'line'},
+    {key:'ms2',label:'✅ メディアキット（PDF）作成・プロフ添付',tag:'sns'},
+    {key:'ms3',label:'✅ AI活用＋外注化で1日15分運用を実現',tag:'ai'},
+    {key:'ms4',label:'✅ 月30万円の自動達成構造へ移行',tag:'sns'},
+  ];
+}
+
+// ============================================================
+// DAILY / WEEKLY TASKS
+// ============================================================
+function getDailyTasks() {
+  return [
+    {key:'d1',time:'朝3分',label:'🌅 朝イチ投稿を公開・いいね・リプ返信',tag:'sns'},
+    {key:'d2',time:'昼5分',label:'📱 昼投稿を公開・伸びた投稿3本をストック',tag:'sns'},
+    {key:'d3',time:'夕2分',label:'💬 リプライ返し・引用RTチェック',tag:'sns'},
+    {key:'d4',time:'夜10分',label:'✍️ 翌日投稿2本をAI＋テンプレで作成→予約セット',tag:'ai'},
+    {key:'d5',time:'随時',label:'💕 インプレ上位アカウントに5リプ（リプ交流）',tag:'sns'},
+  ];
+}
+function getWeeklyTasks() {
+  return [
+    {key:'w1',dow:1,label:'📊 先週の数値振り返り（TOP3・弱投稿・改善仮説）',tag:'sns',time:'月朝10分'},
+    {key:'w2',dow:3,label:'🔍 上位10アカウントリサーチ→自分の言葉でストック',tag:'ai',time:'水夜30分'},
+    {key:'w3',dow:5,label:'🔥 バズ狙い投稿を1本作り込む（比較・逆張り）',tag:'sns',time:'金〜土15分'},
+    {key:'w4',dow:0,label:'📅 翌週14本をAI＋テンプレで作成→予約投稿セット',tag:'ai',time:'日夜20分'},
+  ];
+}
+
+// ============================================================
+// HTML HELPERS
+// ============================================================
+function tagHTML(tag) {
+  const t = TAGS[tag];
+  if (!t) return '';
+  return `<span class="tag" style="background:${t.bg};color:${t.c}">${t.l}</span>`;
+}
+function timeHTML(time) {
+  return time ? `<span class="time-badge">${time}</span>` : '';
+}
+function taskHTML(t, dk, ck, hi, dim, dl, isCarry) {
+  const done = !!(ck && ck[t.key]);
+  let leftEl = '';
+  if (dim && dl) {
+    leftEl = `<span class="task-dow">${dl}曜</span>`;
+  } else {
+    leftEl = `<div class="task-check${done?' done':''}" onclick="toggle('${dk}','${t.key}')">${done?'✓':''}</div>`;
+  }
+  const cls = ['task', hi?'hi':'', dim?'dim':'', isCarry?'carryover':''].filter(Boolean).join(' ');
+  return `<div class="${cls}">
+    ${leftEl}
+    <span class="task-label${done?' done':''}">${t.label}</span>
+    ${isCarry ? '<span class="carry-badge">⚡引き継ぎ</span>' : ''}
+    ${tagHTML(t.tag)}
+    ${timeHTML(t.time)}
+  </div>`;
+}
+
+function toggleSec(head) {
+  const arrow = head.querySelector('.sec-arrow');
+  const body = head.nextElementSibling;
+  const closed = arrow.classList.contains('closed');
+  if (closed) {
+    arrow.classList.remove('closed');
+    body.classList.remove('hidden');
+  } else {
+    arrow.classList.add('closed');
+    body.classList.add('hidden');
+  }
+}
+function toggle(dk, key) {
+  const day = getDay(dk);
+  if (!day.tasks) day.tasks = {};
+  day.tasks[key] = !day.tasks[key];
+  saveStore();
+  render();
+}
+
+// ============================================================
+// AI SECTION
+// ============================================================
+function toggleAiSec() {
+  const arrow = document.getElementById('aiArrow');
+  const body = document.getElementById('aiBody');
+  if (arrow.classList.contains('closed')) {
+    arrow.classList.remove('closed');
+    body.classList.remove('hidden');
+  } else {
+    arrow.classList.add('closed');
+    body.classList.add('hidden');
+  }
+}
+
+async function generateCarryover() {
+  const btn = document.getElementById('aiBtn');
+  const result = document.getElementById('aiResult');
+  const note = document.getElementById('todayNote').value.trim();
+  const dk = dkey(cur);
+  const day = getDay(dk);
+  const ck = day.tasks || {};
+
+  // 今日の状況を集計
+  const daily = getDailyTasks();
+  const dow = cur.getDay();
+  const weekly = getWeeklyTasks().filter(t => t.dow === dow);
+  const allTasks = [...daily, ...weekly];
+  const doneTasks = allTasks.filter(t => ck[t.key]).map(t => t.label.replace(/^[^\s]+\s/, ''));
+  const undone = allTasks.filter(t => !ck[t.key]).map(t => t.label.replace(/^[^\s]+\s/, ''));
+
+  const mon = cur.getMonth() + 1;
+  const ph = gp(mon);
+  const kpi = KPI[mon] || KPI[4];
+
+  // 翌日の日付情報
+  const tomorrow = new Date(cur);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tDow = tomorrow.getDay();
+  const tDowStr = DAYS[tDow];
+  const tMon = tomorrow.getMonth() + 1;
+
+  const prompt = `あなたは「める｜AI×垣抜けワーママ」のXアカウント運営コーチです。
+以下の情報を元に、明日（${tMon}月${tomorrow.getDate()}日・${tDowStr}曜日）にやるべき具体的タスクリストを生成してください。
+
+【現在のフェーズ】${ph.name}（${ph.months.join('・')}ヶ月目）
+【今月のKPI目標】フォロワー${kpi.followers.toLocaleString()}人 / LINE${kpi.line}人 / 月収¥${kpi.income.toLocaleString()}
+【今日の曜日】${DAYS[dow]}曜日
+【明日の曜日】${tDowStr}曜日
+
+【今日完了したタスク】
+${doneTasks.length > 0 ? doneTasks.map(t=>`✅ ${t}`).join('\n') : '（なし）'}
+
+【今日できなかったタスク】
+${undone.length > 0 ? undone.map(t=>`❌ ${t}`).join('\n') : '（全て完了）'}
+
+【今日の状況メモ（ユーザー入力）】
+${note || '（入力なし）'}
+
+以下の形式で、明日の優先タスクを5〜7個リストアップしてください。
+引き継ぎが必要なものは⚡、定番タスクは✅、特別タスクは🎯で始めてください。
+各タスクに【所要時間】と【ポイント】を簡潔に添えてください。
+最後に一言、めめへの励ましメッセージを🌸で締めくくってください。
+回答は日本語で、絵文字を使ったフレンドリーなトーンで書いてください。`;
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="spinner"></span><span>AIが分析中...</span>';
+  result.innerHTML = '<div class="ai-result-placeholder">🤖 ロードマップを分析してAIが考えています...</div>';
+
+  try {
+    const WORKER_URL = 'https://meru-calendar.unposted-nakai.workers.dev';
+
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const text = data.content?.map(c => c.text || '').join('') || 'エラーが発生しました';
+
+    // 結果を保存
+    const tdk = dkey(tomorrow);
+    const tday = getDay(tdk);
+    tday.aiCarryover = text;
+    tday.aiCarryoverDate = dk;
+    saveStore();
+
+    result.textContent = text;
+
+  } catch(e) {
+    result.textContent = 'AI接続エラーが発生しました。\n\nもう一度お試しください🙏';
+  } finally {
+    btn.classList.remove('loading');
+    btn.innerHTML = '<span>✨ AIに明日のタスクを再生成してもらう</span>';
+  }
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  const d = cur;
+  const dow = d.getDay(), dom = d.getDate(), mon = d.getMonth() + 1;
+  const fri = dow===5, sat = dow===6, sun = dow===0;
+  const fom = dom===1, mid = dom===15;
+  const last = new Date(d.getFullYear(), mon, 0).getDate() === dom;
+  const ph = gp(mon);
+  const kpi = KPI[mon] || KPI[4];
+  const pt = THEMES[dow];
+  const dk = dkey(d);
+  const day = getDay(dk);
+  const ck = day.tasks || {};
+
+  // ナビ
+  document.getElementById('navDate').textContent = `${mon}月${dom}日（${DAYS[dow]}）`;
+  document.getElementById('navYear').textContent = isToday(d) ? '🌸 今日' : `${d.getFullYear()}年`;
+
+  // メッセージ
+  const msgs = {
+    0:`<strong>日曜夜は翌週準備の日！</strong>📅<br/>14本をAI＋テンプレで一気に作成→予約投稿セット✨`,
+    1:`<strong>おはよう月曜日！</strong>✨<br/>先週の伸びた投稿TOP3を振り返ろう💪<br/>今月目標：フォロワー${kpi.followers.toLocaleString()}人 ／ LINE${kpi.line}人`,
+    2:`<strong>火曜日はダイエット投稿の日！</strong>🥗<br/>-16kgキープの実体験が最強コンテンツ💕`,
+    3:`<strong>水曜夜はリサーチタイム！</strong>🔍<br/>上位10アカウントの投稿を30分分析✨`,
+    4:`<strong>木曜日はAI活用投稿の日！</strong>🤖<br/>ChatGPTで家事・育児がラクになる実体験をシェア！`,
+    5:`<strong>金曜日はバズ狙いの日！</strong>🔥<br/>比較・逆張り・AIハックで渾身の1本を✨`,
+    6:`<strong>土曜日も発信継続！</strong>🌸<br/>フォロワーとのリプ交流も忘れずに💕`,
+  };
+  document.getElementById('msgText').innerHTML = msgs[dow];
+
+  // フェーズ
+  const pb = document.getElementById('phaseBar');
+  pb.className = `phase-bar pbg-${ph.color}`;
+  document.getElementById('phaseIcon').textContent = ph.icon;
+  document.getElementById('phaseName').textContent = ph.name;
+  document.getElementById('phaseTarget').textContent = `目標：${ph.followers} ／ ${ph.income}`;
+  document.getElementById('phaseMonth').textContent = MONS[mon-1];
+  document.getElementById('phaseMonthLabel').textContent = `${ph.months.indexOf(mon)+1}/${ph.months.length}ヶ月目`;
+
+  // KPI
+  const kpiItems = [
+    {icon:'👥',label:'フォロワー',val:kpi.followers.toLocaleString(),sub:'人'},
+    {icon:'📊',label:'インプレ',val:kpi.impressions,sub:'月間'},
+    {icon:'💌',label:'LINE',val:String(kpi.line),sub:'人'},
+    {icon:'💰',label:'月収目標',val:kpi.income>0?'¥'+kpi.income.toLocaleString():'¥0',sub:''},
+  ];
+  document.getElementById('kpiGrid').innerHTML = kpiItems.map(k=>`
+    <div class="kpi-card">
+      <div class="kpi-icon">${k.icon}</div>
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-val">${k.val}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  // テーマ
+  let themeHTML = '';
+  if (sun) themeHTML += `<div class="sun-special"><strong>🎉 日曜夜スペシャル！</strong>翌週14本（2本×7日）を一気にAI作成→予約投稿セット✨</div>`;
+  themeHTML += `
+    <div class="theme-card" style="border-left:3px solid #F5C0D0">
+      <div class="theme-time">🌅 朝投稿（7〜8時）</div>
+      <div class="theme-name">📌 ${pt.theme}</div>
+      <div class="theme-hint">${pt.hint}</div>
+    </div>
+    <div class="theme-card" style="border-left:3px solid #E896AD;margin-bottom:${(fri||sat)?6:0}px">
+      <div class="theme-time">🌙 夜投稿（21〜22時）</div>
+      <div class="theme-name">📌 美容 or ダイエット（有益系）</div>
+      <div class="theme-hint">-16kgキープ実績を軸に、あゆみさんに刺さる内容で💕</div>
+    </div>`;
+  if (fri||sat) themeHTML += `
+    <div class="theme-card" style="border-left:3px solid #D4718E">
+      <div class="theme-time">⚡ 週1バズ狙い投稿（金〜土）</div>
+      <div class="theme-name">🔥 比較 or 逆張り or AIハック</div>
+      <div class="theme-hint">今週の渾身の1本！時間をかけて作り込もう✨</div>
+    </div>`;
+  document.getElementById('themeSec').innerHTML = themeHTML;
+
+  // 引き継ぎタスク（前日のAI）
+  const prevDay = new Date(d);
+  prevDay.setDate(prevDay.getDate() - 1);
+  const prevDk = dkey(prevDay);
+  // 今日のaiCarryoverを表示
+  const todayCarryover = day.aiCarryover;
+  const carryoverSec = document.getElementById('carryoverSec');
+  const carryoverBody = document.getElementById('carryoverBody');
+  if (todayCarryover) {
+    carryoverSec.style.display = '';
+    carryoverBody.innerHTML = `<div style="font-size:11px;color:#C05878;margin-bottom:6px">🤖 AIが昨日生成した今日のタスク</div>
+      <div style="white-space:pre-wrap;font-size:12px;line-height:1.85;color:#5A2D40;background:#FFF0F5;border-radius:11px;padding:10px 12px;border:1px dashed #F0B0C8">${todayCarryover}</div>`;
+  } else {
+    carryoverSec.style.display = 'none';
+  }
+
+  // AI入力欄に今日のノートを復元
+  document.getElementById('todayNote').value = day.note || '';
+  // 既に生成済みの翌日データがあれば表示
+  const tomorrow = new Date(d);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tdk = dkey(tomorrow);
+  const tday = getDay(tdk);
+  const aiResult = document.getElementById('aiResult');
+  if (tday.aiCarryover && tday.aiCarryoverDate === dk) {
+    aiResult.textContent = tday.aiCarryover;
+  } else {
+    aiResult.innerHTML = '<div class="ai-result-placeholder">↑ ボタンを押すとAIが今日の状況を読み取り、<br/>明日やるべきことを自動生成します✨</div>';
+  }
+
+  // 毎日タスク
+  const daily = getDailyTasks();
+  document.getElementById('dailySec').innerHTML = daily.map(t=>taskHTML(t,dk,ck,false,false,null,false)).join('');
+
+  // 週次タスク
+  const weekly = getWeeklyTasks();
+  const tw = weekly.filter(t=>t.dow===dow);
+  const ow = weekly.filter(t=>t.dow!==dow);
+  let weeklyHTML = '';
+  if (tw.length>0) {
+    weeklyHTML += `<div style="font-size:10px;color:#D4718E;font-weight:700;margin:6px 0 3px">📍 今日やること</div>`;
+    weeklyHTML += tw.map(t=>taskHTML(t,dk,ck,true,false,null,false)).join('');
+  }
+  if (ow.length>0) {
+    weeklyHTML += `<div style="font-size:10px;color:#C090A0;margin:6px 0 3px">他の曜日のタスク</div>`;
+    weeklyHTML += ow.map(t=>taskHTML(t,dk,ck,false,true,DAYS[t.dow],false)).join('');
+  }
+  document.getElementById('weeklySec').innerHTML = weeklyHTML;
+  const weekHead = document.getElementById('weeklySec').previousElementSibling;
+  const weekArrow = weekHead.querySelector('.sec-arrow');
+  if (tw.length>0) {
+    weekArrow.classList.remove('closed');
+    document.getElementById('weeklySec').classList.remove('hidden');
+  }
+
+  // 月次タスク
+  const mo = [];
+  if (fom) {
+    mo.push({key:'m1',label:`📊 KPI確認（フォロワー${kpi.followers.toLocaleString()}人・月収¥${kpi.income.toLocaleString()}）`,tag:'sns',time:'月初10分'});
+    mo.push({key:'m2',label:'🎯 今月の重点施策3つを設定',tag:'sns',time:'月初10分'});
+  }
+  if (mid) mo.push({key:'m3',label:'📈 月中チェック！未達なら施策修正（7章KPI表を参照）',tag:'sns',time:'月中10分'});
+  if (last) {
+    mo.push({key:'m4',label:'📝 実績を記録・月次振り返り',tag:'sns',time:'月末20分'});
+    mo.push({key:'m5',label:'📣 振り返りポストを投稿（ファン化加速）',tag:'sns',time:'月末'});
+    mo.push({key:'m6',label:'🔗 アフィリ収益を分析→上位3商品に集中',tag:'affil',time:'月末10分'});
+  }
+  const mSec = document.getElementById('monthlySec');
+  if (mo.length>0) {
+    mSec.style.display = '';
+    document.getElementById('monthlyTitle').textContent = `📆 月次タスク（${fom?'月初':mid?'月中':'月末'}）`;
+    document.getElementById('monthlyBody').innerHTML = mo.map(t=>taskHTML(t,dk,ck,false,false,null,false)).join('');
+  } else {
+    mSec.style.display = 'none';
+  }
+
+  // マイルストーン
+  const ms = gms(ph.id);
+  document.getElementById('msTitle').textContent = `${ph.icon} フェーズ${ph.id} マイルストーン`;
+  document.getElementById('msSec').innerHTML = ms.map(t=>taskHTML(t,dk,ck,false,false,null,false)).join('');
+
+  // 進捗
+  const weekly2 = getWeeklyTasks();
+  const tw2 = weekly2.filter(t=>t.dow===dow);
+  const allK = [...daily.map(t=>t.key), ...tw2.map(t=>t.key), ...mo.map(t=>t.key)];
+  const doneCount = allK.filter(k=>ck[k]).length;
+  const total = allK.length;
+  const pct = total>0 ? Math.round(doneCount/total*100) : 0;
+  document.getElementById('progressText').textContent = `${doneCount}/${total} (${pct}%)`;
+  document.getElementById('progressFill').style.width = `${pct}%`;
+}
+
+// ============================================================
+// NOTE AUTO-SAVE
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('todayNote').addEventListener('input', function() {
+    const dk = dkey(cur);
+    const day = getDay(dk);
+    day.note = this.value;
+    saveStore();
+  });
+  document.getElementById('prevBtn').addEventListener('click', ()=>shiftDay(-1));
+  document.getElementById('nextBtn').addEventListener('click', ()=>shiftDay(1));
+  document.getElementById('todayBtn').addEventListener('click', goToday);
+  loadStore();
+  render();
+});
+
+function shiftDay(n) {
+  cur = new Date(cur); cur.setDate(cur.getDate()+n);
+  render();
+}
+function goToday() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(2026, 3, 22);
+  cur = today >= start ? today : start;
+  render();
+}
+</script>
+</body>
+</html>
