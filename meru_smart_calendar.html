@@ -489,20 +489,44 @@ function isToday(d) {
 let cur = (function() {
   const start = new Date(2026, 3, 22); // 4月22日スタート
   const today = new Date(); today.setHours(0,0,0,0);
-  // 今日が4/22以降なら今日、それより前なら4/22
   return today >= start ? today : start;
 })();
 let store = {};
+let saveTimer = null;
 
-function loadStore() {
+// KV経由で読み込み（起動時1回）
+async function loadStore() {
   try {
-    const s = localStorage.getItem(SK);
-    if (s) store = JSON.parse(s);
-  } catch(e) { store = {}; }
+    const res = await fetch(WORKER_URL + '/data');
+    const json = await res.json();
+    store = JSON.parse(json.data || '{}');
+  } catch(e) {
+    // KV失敗時はlocalStorageにフォールバック
+    try {
+      const s = localStorage.getItem(SK);
+      if (s) store = JSON.parse(s);
+    } catch(_) { store = {}; }
+  }
+  render();
 }
+
+// KV経由で保存（500msデバウンス）
 function saveStore() {
-  try { localStorage.setItem(SK, JSON.stringify(store)); } catch(e) {}
+  // ローカルにも即時保存（フォールバック）
+  try { localStorage.setItem(SK, JSON.stringify(store)); } catch(_) {}
+  // KVへは少し間隔をあけて保存
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try {
+      await fetch(WORKER_URL + '/data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(store),
+      });
+    } catch(e) { /* KV保存失敗時はlocalStorageのみ */ }
+  }, 500);
 }
+
 function getDay(dk) {
   if (!store[dk]) store[dk] = {};
   return store[dk];
@@ -684,7 +708,7 @@ ${note || '（入力なし）'}
   try {
     const WORKER_URL = 'https://meru-calendar.unposted-nakai.workers.dev';
 
-    const res = await fetch(WORKER_URL, {
+    const res = await fetch(WORKER_URL + '/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -896,8 +920,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('prevBtn').addEventListener('click', ()=>shiftDay(-1));
   document.getElementById('nextBtn').addEventListener('click', ()=>shiftDay(1));
   document.getElementById('todayBtn').addEventListener('click', goToday);
-  loadStore();
-  render();
+  loadStore(); // KVから読み込み完了後にrender()が呼ばれる
 });
 
 function shiftDay(n) {
