@@ -3354,7 +3354,7 @@ ${buzzLearning}
     // 運用ルーティン共通（全フェーズ）
     const dailyBase = [
       { text: '朝5:45｜予約投稿の確認・リプ返信（5分）' },
-      { text: '通勤中｜1投稿ドラフトをChatGPTで骨子作成（10分）' },
+      { text: '朝｜1投稿ドラフトをChatGPTで骨子作成（10分）' },
       { text: '昼休み｜投稿のリプ対応・気になるアカに1件リプ（5分）' },
       { text: '寝る前｜翌日の投稿を予約設定（5分）' },
     ];
@@ -3583,22 +3583,150 @@ ${buzzLearning}
     if (typeof renderAchievement === 'function') renderAchievement();
   }
 
+
   // ============ 参考サイト準拠の手帳データ ============
-  // 曜日別の投稿テーマ（設計書の推奨運用）
-  const POST_THEMES_BY_WEEKDAY = {
-    0: { name: '週次振り返り・翌週準備', detail: '今週の数字振り返り／来週14本の投稿を一気に予約' },
-    1: { name: 'AI時短（神プロンプト系）', detail: '特典①〜⑩から1つ紹介。保存されやすい' },
-    2: { name: '美容×AI', detail: '朝20分ルーティン・プチプラコスメのAI活用' },
-    3: { name: 'AI応用（家事・育児）', detail: '献立自動化・連絡帳返信・行事準備のプロンプト' },
-    4: { name: 'ダイエット', detail: '-16kgキープの仕組み・食事ルール・停滞期の話' },
-    5: { name: '自己開示・共感', detail: 'ワーママ本音・失敗談・Before-After(Phase2〜)' },
-    6: { name: '週1バズ狙い投稿', detail: '比較・逆張り・AIハックで新規流入を狙う（20分で作り込む）' },
-  };
+
+  // 設計書・ロードマップの投稿30本プラン（Phase1）+ Phase2以降の週別テーマを
+  // 運用開始日からの通算日数でローテーションして「今日のテーマ」を決定する
+
+  // Phase1: 30本プランの具体ネタ（設計書4-3準拠）
+  const PHASE1_POST_PLAN = [
+    { category: '固定ポスト', theme: '自己紹介＋特典告知', hook: '産後-16kgの私が使ってるAIプロンプト全部まとめました' },
+    { category: 'AI時短', theme: 'プロンプト①献立自動作成', hook: '毎週木曜の夜、これだけで献立考える時間がゼロに' },
+    { category: 'AI時短', theme: 'プロンプト②冷蔵庫レシピ', hook: '累計20回スーパー行かずに済みました' },
+    { category: '自己開示', theme: '産後に鏡を見るのが怖かった話', hook: '結婚式の写真を見て、自分で自分が怖くなった' },
+    { category: 'AI時短', theme: 'プロンプト③帰宅後段取り', hook: 'お米炊きながらお風呂沸かす発想、自分じゃ思いつかない' },
+    { category: 'AI時短', theme: 'プロンプト④最低ライン家事', hook: '生理前のお守り。休んでいいって言われたい' },
+    { category: '美容', theme: 'AIで選ぶプチプラコスメ', hook: '化粧品迷子、ネットで10件口コミ読むより早い' },
+    { category: 'AI時短', theme: 'プロンプト⑤行事準備', hook: 'ママ友から「準備よすぎ」と言われる正体' },
+    { category: 'AI時短', theme: 'プロンプト⑥連絡帳返信', hook: '丁寧すぎ/簡潔すぎで悩まなくなった' },
+    { category: 'ダイエット', theme: 'AIで1週間献立', hook: '献立考えないだけで、自然に痩せ体質に' },
+    { category: 'AI時短', theme: 'プロンプト⑨もやもや言語化', hook: '判断されないのが救い。3行で見えてくる' },
+    { category: 'AI時短', theme: 'プロンプト⑩1週間振り返り', hook: '頑張りすぎを優しく指摘してくれる' },
+    { category: '自己開示', theme: '半年目の停滞期', hook: 'やめる決断すらできなかった（笑）' },
+    { category: 'AI時短', theme: 'AI時短ルーティン公開', hook: '早起き苦手が1時間早起きを楽しみにできた理由' },
+    { category: 'AI時短', theme: 'よくある質問回答', hook: 'まず献立だけやってみて。2時間戻ってくる' },
+    { category: 'AI時短', theme: 'プロンプト⑧顔タイプメイク', hook: '5分で完成する平日メイク、AIが持ってた' },
+    { category: 'AI時短', theme: '失敗プロンプトと改善法', hook: '「丁寧に書けばいい」は半分ウソ' },
+    { category: '美容', theme: '朝20分ルーティン', hook: '同僚に「キレイになった?」と言われた手順' },
+    { category: 'AI時短', theme: 'プロンプト①応用', hook: '「子供が魚嫌い」を伝えたら神献立になった' },
+    { category: 'ダイエット', theme: '食事の4ルール', hook: 'ジム3回退会した私が続いてる理由' },
+    { category: 'AI時短', theme: 'LINE下書きプロンプト', hook: '言いにくいこと、AIに下書きさせると角が立たない' },
+    { category: '自己開示', theme: '-16kgの1年記録', hook: '3ヶ月で-5kg、半年目まで-8kgで止まった' },
+    { category: 'AI時短', theme: 'まとめ：AI時短10選', hook: 'ワーママに必要なAIは、この10個で足ります' },
+    { category: 'AI時短', theme: '音声入力×AI', hook: '通勤10分で1週間の段取り終わる' },
+    { category: 'AI時短', theme: 'プロンプト④応用', hook: 'ピアノ送迎日の「これだけ」リスト' },
+    { category: '美容', theme: 'AIでスキンケア相談', hook: '敏感肌の私が失敗しないコツ' },
+    { category: 'AI時短', theme: '週末イベント企画（特典⑭）', hook: '予算・天気・年齢入れるだけで神プラン' },
+    { category: 'AI時短', theme: '作り置きDAY×AI', hook: '作り置き10品の順番、AIが一番効率的' },
+    { category: '自己開示', theme: '続くワーママの3つの共通点', hook: '完璧を手放す・記録する・宣言する' },
+    { category: '総まとめ', theme: '7日間チャレンジ告知', hook: '#める実践 で一緒にやるママ募集' },
+  ];
+
+  // Phase2以降の週別テーマ（6週間分 × 5曜日）
+  const PHASE2_WEEKLY_PLAN = [
+    // 1週目
+    { day: '月', theme: '特典⑪チラ見せ', detail: '寝かしつけ後の30分で何ができるか' },
+    { day: '火', theme: '朝のNG①', detail: '洗顔後すぐファンデをやめたら変わったこと' },
+    { day: '水', theme: 'プロンプト①応用', detail: '子供偏食対応の神献立' },
+    { day: '木', theme: '食事の4ルール解説', detail: 'ジム3回退会した私が続いてる理由' },
+    { day: '金', theme: '結婚式の写真に泣いた話', detail: '産後太りの本当の辛さ' },
+    // 2週目
+    { day: '月', theme: 'プロンプト②応用', detail: '賞味期限切れ救済レシピ' },
+    { day: '火', theme: 'スキンケア3ステップ', detail: '無印化粧水で十分な理由' },
+    { day: '水', theme: '特典⑫チラ見せ', detail: '夫への家事分担LINEの書き方' },
+    { day: '木', theme: '1週間献立公開', detail: '月曜に作っておくだけの神リスト' },
+    { day: '金', theme: '「子持ちに見えない」と言われた日', detail: '変化に気づいてもらえた瞬間' },
+    // 3週目
+    { day: '月', theme: 'プロンプト③応用', detail: '残業日の段取り術' },
+    { day: '火', theme: 'プチプラコスメ5選', detail: 'セザンヌ・キャンメイク系の推し' },
+    { day: '水', theme: 'プロンプト④応用', detail: '体調不良日の乗り切り方' },
+    { day: '木', theme: '作り置き3品レシピ', detail: '日曜30分で平日が楽になる' },
+    { day: '金', theme: '停滞期の夜に泣いた話', detail: 'やめようと思った夜のこと' },
+    // 4週目
+    { day: '月', theme: '特典⑬チラ見せ', detail: '停滞期のメンタル管理法' },
+    { day: '火', theme: '朝のNG②', detail: '下まつ毛マスカラをやめたら夕方が変わった' },
+    { day: '水', theme: 'プロンプト⑤応用', detail: '運動会準備完全版' },
+    { day: '木', theme: 'コンビニ神食材5選', detail: 'これだけあれば1週間乗り切れる' },
+    { day: '金', theme: '-16kg Before-After公開', detail: '3ヶ月〜1年の変化を正直に' },
+    // 5週目
+    { day: '月', theme: 'プロンプト⑥応用', detail: '保育園トラブル対応メール' },
+    { day: '火', theme: 'YESテク3選', detail: '白湯・チーク・UVの組み合わせ' },
+    { day: '水', theme: 'プロンプト⑦応用', detail: '敏感肌のコスメ選び' },
+    { day: '木', theme: 'ベジファーストの効果', detail: '続けて3ヶ月で変わったこと' },
+    { day: '金', theme: '家族の反応エピソード', detail: '夫や子供が気づいた変化' },
+    // 6週目
+    { day: '月', theme: '特典⑭チラ見せ', detail: '週末イベント企画プロンプト' },
+    { day: '火', theme: '朝のNG③④⑤まとめ', detail: 'やめてよかった美容習慣まとめ' },
+    { day: '水', theme: 'プロンプト⑧応用', detail: 'パーソナルカラー診断活用法' },
+    { day: '木', theme: '5分ずるメニュー3つ', detail: 'クタクタな日でも食べられる' },
+    { day: '金', theme: '「やめようと思った夜」', detail: 'それでも続けた理由' },
+  ];
+
+  // 運用開始日からの通算日数でその日のテーマを決定
+  function getTodayPostTheme(date) {
+    const start = getStartDate();
+    const phase = getPhaseForDate(date);
+    const wd = date.getDay();
+
+    // 日付のみで比較するためローカル日付をYYYY-MM-DDで揃える
+    const toLocalDateStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const startStr = toLocalDateStr(start);
+    const dateStr  = toLocalDateStr(date);
+
+    // ローカル日付ベースの経過日数（タイムゾーンズレなし）
+    const startMid = new Date(startStr + 'T00:00:00');
+    const dateMid  = new Date(dateStr  + 'T00:00:00');
+    const diffDays = Math.round((dateMid - startMid) / (1000 * 60 * 60 * 24));
+
+    // 土日は固定
+    if (wd === 0) return { name: '週次振り返り・翌週準備', detail: '今週の数字を振り返り／来週14本の投稿を一気に予約（30分）', category: '運用管理' };
+    if (wd === 6) return { name: '週1バズ狙い投稿', detail: '比較・逆張り・AIハックで新規流入を狙う。20分かけて作り込む', category: 'バズ' };
+
+    if (diffDays < 0) {
+      // 運用前
+      return { name: '準備中', detail: '運用開始日を設定タブで確認してください', category: '' };
+    }
+
+    if (phase.num <= 1) {
+      // Phase1: 運用開始日からの「平日のみ」通算カウントでPLANをローテーション
+      let weekdayCount = 0;
+      const cursor = new Date(startMid);
+      // start当日〜date当日まで（当日含む）の平日を数える
+      while (toLocalDateStr(cursor) <= dateStr) {
+        const w = cursor.getDay();
+        if (w !== 0 && w !== 6) weekdayCount++;
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      // weekdayCountは「start〜dateまでの平日日数」= 1始まり
+      const idx = (weekdayCount - 1) % PHASE1_POST_PLAN.length;
+      const post = PHASE1_POST_PLAN[idx];
+      return {
+        name: `【投稿${weekdayCount}本目】${post.theme}`,
+        detail: `フック案：「${post.hook}」`,
+        category: post.category,
+        postNum: weekdayCount,
+      };
+    } else {
+      // Phase2以降: 6週間ローテーション（月〜金）
+      const weekdayMap = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4 };
+      const wdIdx = weekdayMap[wd];
+      if (wdIdx === undefined) return { name: '投稿テーマ', detail: '今日のテーマを選んでください', category: '' };
+      const diffWeeks = Math.floor(diffDays / 7) % 6;
+      const planIdx = diffWeeks * 5 + wdIdx;
+      const post = PHASE2_WEEKLY_PLAN[planIdx] || PHASE2_WEEKLY_PLAN[wdIdx];
+      return {
+        name: `${post.day}曜：${post.theme}`,
+        detail: post.detail,
+        category: '',
+      };
+    }
+  }
 
   // 毎日ルーティン（15〜20分）
   const DAILY_ROUTINE = [
     { id: 'dr1', text: '朝5:45-5:50｜予約投稿の確認・初動リプ返信（5分）' },
-    { id: 'dr2', text: '通勤/朝6:00-6:10｜1投稿ドラフトをChatGPTで骨子作成（10分）' },
+    { id: 'dr2', text: '朝6:00-6:10｜1投稿ドラフトをChatGPTで骨子作成（10分）' },
     { id: 'dr3', text: '昼休み｜リプ対応・気になるワーママアカに1件リプ（5分）' },
     { id: 'dr4', text: '寝る前｜翌朝7時の予約投稿を確定（5分）' },
   ];
@@ -3623,6 +3751,7 @@ ${buzzLearning}
     { text: '月末：<strong>LINE公式の一斉配信</strong>（特典案内 or セミナー告知）' },
     { text: '月末：<strong>翌月計画</strong>（新商品リリース・PR案件受注など）' },
   ];
+
 
   // フェーズ別マイルストーン（ロードマップv2準拠）
   const PHASE_MILESTONES = {
@@ -3710,9 +3839,11 @@ ${buzzLearning}
     const phase = getPhaseForDate(date);
 
     // 📝 今日の投稿テーマ
-    const theme = POST_THEMES_BY_WEEKDAY[wd];
+    const theme = getTodayPostTheme(date);
+    const categoryBadge = theme.category ? `<span style="display:inline-block;background:var(--sakura-bg);color:var(--sakura-deep);font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:10px;margin-bottom:6px;">${escapeHtml(theme.category)}</span>` : '';
     document.getElementById('accordionPostTheme').innerHTML = `
       <div style="padding:6px 0 10px;">
+        ${categoryBadge}
         <div style="font-size:13.5px; font-weight:700; color:var(--text-main); margin-bottom:4px;">${escapeHtml(theme.name)}</div>
         <div style="font-size:11.5px; color:var(--text-sub); line-height:1.65;">${escapeHtml(theme.detail)}</div>
         <div style="margin-top:8px; font-size:10.5px; color:var(--text-faint);">※ ${phase.label} の投稿比率に合わせて調整してください</div>
@@ -3988,8 +4119,17 @@ ${buzzLearning}
     const isFuture = date > today && dateKey(date) !== dateKey(today);
     const isPast = date < today && dateKey(date) !== dateKey(today);
 
-    const prompt = `あなたはX運用コーチです。「める｜AI×垢抜けワーママ」（@meru_mamahack）の運用をサポートしています。
-以下の情報をもとに、この日にやるべきタスクを5〜7個、具体的に提案してください。
+    const prompt = `あなたはX（旧Twitter）専門の運用コーチです。「める｜AI×垢抜けワーママ」（@meru_mamahack）のX運用をサポートしています。
+以下の情報をもとに、この日にやるべきXのタスクを5〜7個、具体的に提案してください。
+
+# 重要：このアカウントはX（旧Twitter）専用です
+- 投稿先はXのタイムラインのみ（Instagram・TikTok・ストーリーズ・リール等は一切不要）
+- 「ポスト」=Xへの投稿（140〜280文字のテキスト投稿）
+- 「リプライ」=Xのリプライ欄への返信
+- 「引用RP」=Xの引用リポスト
+- 「インプレッション」=Xの表示回数
+- 予約投稿はXの公式予約機能 or Buffer/Hootsuite
+- 画像はXに直接添付（正方形1:1 or 横長16:9）
 
 # アカウント設計
 - 発信軸：AI×ワーママ時短を主軸に、美容・ダイエットをAI時短の"結果"として見せる
@@ -4004,25 +4144,32 @@ ${buzzLearning}
 - 保存済みポスト数：${savedCount}件
 
 # フェーズ別の方針
-- Phase 1（1〜2ヶ月目）：AI 80% / 美容 10% / ダイエット 10%｜CTAは控えめ（10投稿に1本）｜LINE公式を1ヶ月目に開設
-- Phase 2（2〜4ヶ月目）：AI 50% / 美容 25% / ダイエット 15% / 自己開示 10%｜Before-After解禁｜5投稿に1本CTA
-- Phase 3（4〜6ヶ月目）：月3万円達成目標｜アフィリエイト本格開始｜楽天ROOM開設｜Brain企画準備
-- Phase 4（7〜8ヶ月目）：月15万円達成目標｜Brain前倒しリリース＋PR初受注
-- Phase 5（9〜12ヶ月目）：月30万円達成目標｜高単価商品＋PR月2件＋1日15分運用
+- Phase 1（1〜2ヶ月目）：AI 80% / 美容 10% / ダイエット 10%｜CTA控えめ（X投稿10本に1本）｜LINE公式を1ヶ月目に開設
+- Phase 2（2〜4ヶ月目）：AI 50% / 美容 25% / ダイエット 15% / 自己開示 10%｜Before-After画像をXに投稿解禁｜X投稿5本に1本CTA
+- Phase 3（4〜6ヶ月目）：月3万円達成目標｜楽天ROOMリンクをXポストに添付｜Brain企画準備
+- Phase 4（7〜8ヶ月目）：月15万円達成目標｜Brain前倒しリリース＋X経由PR初受注
+- Phase 5（9〜12ヶ月目）：月30万円達成目標｜高単価商品＋PR月2件＋1日15分X運用
 
-# 曜日別の推奨テーマ
-月：AI時短／火：美容／水：AI応用／木：ダイエット／金：自己開示／土：週1バズ投稿／日：週次振り返り
+# 曜日別の推奨Xポストテーマ
+月：AI時短（神プロンプト系）／火：美容×AI／水：AI応用（家事・育児）／木：ダイエット／金：自己開示・共感／土：週1バズ狙いポスト（比較・逆張り）／日：翌週14本のX予約投稿＋数字振り返り
+
+# X運用の鉄則（タスクに必ず反映）
+- 1日2ポストを基本（朝7〜9時・夜21〜23時のゴールデンタイムに予約）
+- リプライはX上での交流が最優先（同ジャンルのワーママアカに1〜3件）
+- いいね・リポストはX上の行動のみ
+- ハッシュタグは#ワーママ #AI活用 #ChatGPT #時短 など3〜5個
+- 週1本はXでバズを狙うポスト（逆張り・数字・あるある）
 
 # 出力形式
 以下のJSON配列だけを出力してください（余計な文字やコードブロックは一切不要）：
 
 [
-  "具体的なタスク1（時間目安付き・現在フェーズに応じた内容）",
-  "具体的なタスク2",
+  "具体的なXタスク1（時間目安付き・現在フェーズに応じた内容）",
+  "具体的なXタスク2",
   ...
 ]
 
-現在の${phase.label}に合わせた、${weekday}曜日の具体的なタスクを提案してください。`;
+現在の${phase.label}に合わせた、${weekday}曜日のX運用タスクを提案してください。`;
 
     try {
       const data = await callClaudeAPI(prompt, 1500);
