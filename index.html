@@ -2548,7 +2548,6 @@
   // ⚠️ デプロイ前に以下を各自の値に書き換えてください
 
   const CONFIG = {
-    // Firebase設定（Firebase Console → プロジェクト設定 → Webアプリ登録でコピペ）
     firebase: {
       apiKey: "AIzaSyD51-EYTiIhroLCQEeIAuxwcyPQwexUDF0",
       authDomain: "post-manager-1af45.firebaseapp.com",
@@ -2557,10 +2556,6 @@
       messagingSenderId: "687416291849",
       appId: "1:687416291849:web:572c7df139ba9e09047ed8"
     },
-
-    // Claude API 呼び出しエンドポイント
-    //   Cloudflare Pages Functions で /api/claude をプロキシしています（同一オリジン）
-    //   別ドメインのWorkerを使う場合はフルURLを指定してください
     apiMode: "pages",
     apiEndpoint: "/api/claude",
   };
@@ -2696,7 +2691,6 @@
     if (statusEl) statusEl.textContent = text;
   }
 
-  // クラウド同期対象のキー一覧
   const CLOUD_KEYS = [
     'meru_saved_posts', 'meru_buzz_posts',
     'meru_selected_themes', 'meru_post_type', 'meru_target', 'meru_length', 'meru_keyword',
@@ -2722,7 +2716,6 @@
     }
   }
 
-  // クラウド保存（debounce付き）
   let saveTimer = null;
   async function saveCloud() {
     if (!currentUser || !firebaseDb) return;
@@ -2785,7 +2778,7 @@
       return await response.json();
     }
 
-    // direct モード（個人用・非推奨）
+    // direct モード（個人用）
     let apiKey = localStorage.getItem('meru_api_key');
     if (!apiKey) {
       apiKey = window.prompt('Anthropic APIキーを入力してください（sk-ant-...）\n設定タブから後で変更できます。');
@@ -3305,9 +3298,10 @@ ${buzzLearning}
   function getStartDate() {
     let start = localStorage.getItem('meru_start_date');
     if (!start) {
-      // 初回は今日を運用開始日として記録
-      const today = new Date();
-      start = today.toISOString().slice(0, 10);
+      // 初回は明日を運用開始日として記録
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      start = tomorrow.toISOString().slice(0, 10);
       localStorage.setItem('meru_start_date', start);
     }
     return new Date(start + 'T00:00:00');
@@ -3318,7 +3312,7 @@ ${buzzLearning}
     const diffMonths = (date.getFullYear() - start.getFullYear()) * 12
                      + (date.getMonth() - start.getMonth());
     // 1ヶ月目=0, 2ヶ月目=1, ...
-    if (diffMonths < 0) return { num: 0, label: '運用前', color: '#a88a8a' };
+    if (diffMonths < 0) return { num: 0, label: '準備中', color: '#a88a8a', detail: '明日スタート｜今夜プロフ・固定ポスト・LINE公式を準備' };
     if (diffMonths < 2) return { num: 1, label: 'Phase 1', color: '#e88a95', detail: '認知獲得期｜フォロワー0→300人' };
     if (diffMonths < 4) return { num: 2, label: 'Phase 2', color: '#c96573', detail: '共感獲得期｜300→1,000人' };
     if (diffMonths < 6) return { num: 3, label: 'Phase 3', color: '#c9a96b', detail: '初期収益化｜月3万円達成' };
@@ -3409,8 +3403,11 @@ ${buzzLearning}
       ];
     } else {
       phaseTasks = [
-        { text: '運用開始前｜プロフ・固定ポスト・LINE公式の準備' },
-        { text: '運用開始前｜特典PDF⑪〜⑮のLINE配信設定' },
+        { text: '【準備①】今夜：プロフィールを推奨案Aに変更（1行目フックを強化）' },
+        { text: '【準備②】今夜：固定ポストを黄金テンプレで作成・LINE誘導リンクを設置（30分）' },
+        { text: '【準備③】今夜：LINE公式を開設し、無料特典PDFを設置する（60分）' },
+        { text: '【準備④】週末：投稿1〜5本（プロンプト①〜⑤）をChatGPTで骨子作成・予約投稿（30分）' },
+        { text: '【準備⑤】設定タブの「運用開始日」が明日の日付になっていることを確認' },
       ];
     }
 
@@ -4636,7 +4633,7 @@ ${buzzLearning}
     pmRenderList();
   });
   document.getElementById('pmClearBtn').addEventListener('click', () => {
-    if (!confirm('全てのポストデータを削除します。よろしいですか？\n（クラウド上のデータも削除されます）')) return;
+    if (!confirm('全てのポストデータを削除します。よろしいですか？')) return;
     state.savedPosts = [];
     save('meru_saved_posts', state.savedPosts);
     pmRefresh();
@@ -4676,7 +4673,13 @@ ${buzzLearning}
     const startEl = document.getElementById('startDate');
     if (startEl) {
       const stored = localStorage.getItem('meru_start_date');
-      startEl.value = stored || new Date().toISOString().slice(0, 10);
+      if (!stored) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        startEl.value = tomorrow.toISOString().slice(0, 10);
+      } else {
+        startEl.value = stored;
+      }
     }
     // APIキー
     const apiKeyEl = document.getElementById('apiKeyInput');
