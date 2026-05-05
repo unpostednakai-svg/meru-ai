@@ -1105,10 +1105,11 @@
   .cal-grid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 34px;
     gap: 2px;
   }
   .cal-cell {
-    height: 32px;
+    height: 34px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1122,8 +1123,9 @@
     cursor: pointer;
     position: relative;
     transition: all 0.15s;
-    padding: 1px;
+    padding: 2px 1px;
     line-height: 1;
+    overflow: hidden;
   }
   .cal-cell:active { transform: scale(0.95); }
   .cal-cell.empty {
@@ -1913,8 +1915,8 @@
       </div>
 
       <div class="field">
-        <label class="field-label">今日の出来事・メモ（任意）</label>
-        <textarea class="textarea" id="keyword" placeholder="例：今朝5時起きで自分時間確保できた！ など"></textarea>
+        <label class="field-label">テーマ・今日の出来事（入力するとそれに沿って生成）</label>
+        <textarea class="textarea" id="keyword" placeholder="例：献立プロンプトを紹介したい&#10;例：今朝5時起きで自分時間を作れた話を書きたい&#10;例：敏感肌のスキンケアを変えて肌荒れが減った"></textarea>
       </div>
     </div>
 
@@ -2971,7 +2973,7 @@
     });
   });
 
-  // ============ テーマ選択 ============
+  // ============ テーマ選択（排他・1つだけ）============
   function renderThemes() {
     const el = document.getElementById('themes');
     el.innerHTML = THEMES.map(t => `
@@ -2984,11 +2986,8 @@
     el.querySelectorAll('.theme').forEach(card => {
       card.addEventListener('click', () => {
         const id = card.dataset.id;
-        if (state.selectedThemes.has(id) && state.selectedThemes.size > 1) {
-          state.selectedThemes.delete(id);
-        } else if (!state.selectedThemes.has(id)) {
-          state.selectedThemes.add(id);
-        }
+        // 排他選択：常に1つだけ
+        state.selectedThemes = new Set([id]);
         renderThemes();
         save('meru_selected_themes', [...state.selectedThemes]);
       });
@@ -3158,7 +3157,9 @@ ${styleRules.map(r => '- ' + r).join('\n')}
 - ❌ 薬機法NGワード：「痩せる」「シミが消える」「効く」→「整える」「導く」「変わった」
 - ❌ 指定の文字数上限(${lenSpec.max}字)超過
 
-${state.keyword.trim() ? `# 今日の出来事・メモ（これをベースに投稿を組み立てる）\n${state.keyword.trim()}` : ''}
+${state.keyword.trim() ? `# ★最優先★ テーマ・今日の出来事（必ずこの内容をベースに投稿を組み立てること）
+${state.keyword.trim()}
+↑ この内容を投稿の中心に据え、テーマ「${[...state.selectedThemes].map(id => THEMES.find(t => t.id === id)?.name).join('・')}」の文脈で具体的に描写してください。ネタ候補より本欄を優先してください。` : ''}
 ${buzzLearning}
 
 # 出力形式（厳守）
@@ -3298,10 +3299,7 @@ ${buzzLearning}
   function getStartDate() {
     let start = localStorage.getItem('meru_start_date');
     if (!start) {
-      // 初回は明日を運用開始日として記録
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      start = tomorrow.toISOString().slice(0, 10);
+      start = '2026-05-06';
       localStorage.setItem('meru_start_date', start);
     }
     return new Date(start + 'T00:00:00');
@@ -3498,6 +3496,8 @@ ${buzzLearning}
         renderCalendar();
         renderDayInfo();
         renderTasks();
+        renderAccordionContents();
+        renderAchievement();
       });
     });
   }
@@ -4816,17 +4816,10 @@ ${buzzLearning}
       else sw.classList.remove('on');
     });
     document.getElementById('followerCount').value = state.followerCount;
-    // 運用開始日
     const startEl = document.getElementById('startDate');
     if (startEl) {
       const stored = localStorage.getItem('meru_start_date');
-      if (!stored) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        startEl.value = tomorrow.toISOString().slice(0, 10);
-      } else {
-        startEl.value = stored;
-      }
+      startEl.value = stored || '2026-05-06';
     }
     // APIキー
     const apiKeyEl = document.getElementById('apiKeyInput');
