@@ -2920,10 +2920,10 @@
 
   const DEFAULT_TASKS = [
     'フォロワー分析（昨日の伸び・反応の良かった投稿チェック）',
-    '朝の予約投稿を確認（7〜9時のゴールデン枠）',
+    '朝6:30の予約投稿を確認・修正（⭐ベストタイム）',
     '気になるワーママアカに3件リプライ',
     '今日のメインポストを作成（共感系 or ノウハウ系）',
-    '夜21〜23時の投稿を予約設定',
+    '夜21:30の投稿を予約設定（⭐寝かしつけ後ゴールデンタイム）',
     '他アカのバズ投稿を1つ学習タブに保存',
   ];
 
@@ -3306,12 +3306,10 @@ ${buzzLearning}
   // 設計書・ロードマップに基づくフェーズ判定
   // 運用開始日を基準に、経過月数からフェーズを決定
   function getStartDate() {
-    let start = localStorage.getItem('meru_start_date');
-    if (!start) {
-      start = '2026-05-06';
-      localStorage.setItem('meru_start_date', start);
-    }
-    return new Date(start + 'T00:00:00');
+    // 運用開始日を2026-05-06に固定（強制上書き）
+    const fixed = '2026-05-06';
+    localStorage.setItem('meru_start_date', fixed);
+    return new Date(fixed + 'T00:00:00');
   }
 
   function getPhaseForDate(date) {
