@@ -2314,12 +2314,21 @@
     <div class="section-title" style="margin-top:10px;">⏰ 最適な投稿時間帯</div>
 
     <div class="info-block">
-      🌅 <strong>7:00〜9:00</strong> — 通勤・育児の隙間<br>
-      ☀️ <strong>12:00〜13:00</strong> — ランチタイム<br>
-      🌙 <strong>21:00〜23:00</strong> — 子供就寝後 <span style="color:var(--sakura-deep); font-weight:700;">⭐ゴールデンタイム</span><br>
+      <div style="margin-bottom:6px; font-size:11px; color:var(--text-faint);">※ターゲット（30代フルタイムワーママ）がXを開く時間帯に合わせた設計</div>
+      🌅 <strong>6:00〜7:00</strong> — <span style="color:var(--sakura-deep); font-weight:700;">⭐第1推奨</span>　子供が起きる前の静かな時間。投稿が朝の通勤時間帯（7〜9時）に流れてインプレッションを稼ぎやすい<br>
       <br>
-      <strong>投稿頻度：</strong>毎日2投稿＋週1バズが黄金バランス<br>
-      （毎日3投稿は燃え尽きる。2投稿に減らして質を上げる）
+      ☀️ <strong>12:00〜12:30</strong> — 第2推奨　昼休みスマホ確認のピーク。ランチしながらX閲覧するワーママに届く<br>
+      <br>
+      🌙 <strong>21:00〜22:00</strong> — <span style="color:var(--sakura-deep); font-weight:700;">⭐第1推奨</span>　寝かしつけ後の「自分時間」。エンゲージメント率が最も高い。返信・いいねも活発になる時間帯<br>
+      <br>
+      <div style="background:var(--sakura-bg); border-radius:6px; padding:8px 10px; margin-top:4px;">
+        <strong>🏆 最強の組み合わせ</strong><br>
+        <strong>1投稿目：6:30予約</strong>（朝の静かな時間に仕込む）<br>
+        <strong>2投稿目：21:30予約</strong>（寝かしつけ後にリアルタイム反応）<br>
+        週1バズ投稿は<strong>土曜20:00〜21:00</strong>（週末の夜は滞在時間が長い）
+      </div>
+      <br>
+      <strong>❌ 避けるべき時間：</strong>13〜17時（勤務中でX閲覧が少ない）・深夜0時以降（翌朝に埋もれる）
     </div>
 
     <div class="section-title" style="margin-top:10px;">🏷️ 必須ハッシュタグ</div>
@@ -3727,8 +3736,8 @@ ${buzzLearning}
   const DAILY_ROUTINE = [
     { id: 'dr1', text: '朝5:45-5:50｜予約投稿の確認・初動リプ返信（5分）' },
     { id: 'dr2', text: '朝6:00-6:10｜1投稿ドラフトをChatGPTで骨子作成（10分）' },
-    { id: 'dr3', text: '昼休み｜リプ対応・気になるワーママアカに1件リプ（5分）' },
-    { id: 'dr4', text: '寝る前｜翌朝7時の予約投稿を確定（5分）' },
+    { id: 'dr3', text: '昼12:00｜リプ対応・気になるワーママアカに1件リプ（5分）' },
+    { id: 'dr4', text: '寝る前21:00-21:30｜2投稿目を投稿 or 翌朝6:30の予約投稿を確定（5分）' },
   ];
 
   // 週次ルーティン（曜日別の運用）
@@ -4154,7 +4163,7 @@ ${buzzLearning}
 月：AI時短（神プロンプト系）／火：美容×AI／水：AI応用（家事・育児）／木：ダイエット／金：自己開示・共感／土：週1バズ狙いポスト（比較・逆張り）／日：翌週14本のX予約投稿＋数字振り返り
 
 # X運用の鉄則（タスクに必ず反映）
-- 1日2ポストを基本（朝7〜9時・夜21〜23時のゴールデンタイムに予約）
+- 1日2ポストを基本（⭐6:30予約と⭐21:30投稿がベスト。朝の通勤時間帯・夜の寝かしつけ後に届く）
 - リプライはX上での交流が最優先（同ジャンルのワーママアカに1〜3件）
 - いいね・リポストはX上の行動のみ
 - ハッシュタグは#ワーママ #AI活用 #ChatGPT #時短 など3〜5個
