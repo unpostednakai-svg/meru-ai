@@ -1,0 +1,19 @@
+{
+  "name": "x-article-researcher",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "CLI that researches a topic with Claude + live web search and writes a cited article.",
+  "bin": {
+    "x-article-researcher": "index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18.17"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0"
+  }
+}
