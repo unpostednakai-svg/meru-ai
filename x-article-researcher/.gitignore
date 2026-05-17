@@ -11,3 +11,5 @@ strategy.md
 *.report.json
 *.report.md
 *.strategy.md
+*.xlsx
+*.csv
