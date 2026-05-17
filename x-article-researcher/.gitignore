@@ -7,5 +7,7 @@ out/
 # 生成物（収集データ / 分析レポート）
 report.json
 report.md
+strategy.md
 *.report.json
 *.report.md
+*.strategy.md

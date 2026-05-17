@@ -142,6 +142,17 @@ function parseCli(argv) {
 const log = (s) => process.stderr.write(s);
 const ymd = (date) => date.toISOString().slice(0, 10);
 
+// API キーは英数記号のみで括弧・引用符・空白を含まない。環境変数に誤って
+// 付いた囲み文字（全角/半角の括弧・引用符）と前後空白を除去する。これを
+// 残すと HTTP ヘッダーが ByteString に変換できず通信が失敗する。
+const KEY_WRAP = "（）()「」『』\"'`\\s";
+function sanitizeKey(raw) {
+  return (raw ?? "")
+    .replace(new RegExp(`^[${KEY_WRAP}]+`, "u"), "")
+    .replace(new RegExp(`[${KEY_WRAP}]+$`, "u"), "")
+    .trim();
+}
+
 // Python 版と同一: ひらがな・カタカナ (U+3040–U+30FF) と漢字 (U+4E00–U+9FFF)
 const JP_RE = /[぀-ヿ一-鿿]/;
 const isJapanese = (text) => JP_RE.test(text || "");
@@ -470,16 +481,23 @@ async function main() {
     );
     process.exit(2);
   }
-  if (!process.env.SOCIALDATA_API_KEY) {
+  const socialKey = sanitizeKey(process.env.SOCIALDATA_API_KEY);
+  if (!socialKey) {
     process.stderr.write("エラー: 環境変数 SOCIALDATA_API_KEY が未設定です。\n");
     process.exit(2);
   }
-  if (opts.strategy && !process.env.ANTHROPIC_API_KEY) {
-    process.stderr.write(
-      "エラー: 環境変数 ANTHROPIC_API_KEY が未設定です" +
-        "（戦略生成が不要なら --no-strategy）。\n",
-    );
-    process.exit(2);
+  process.env.SOCIALDATA_API_KEY = socialKey;
+
+  if (opts.strategy) {
+    const anthropicKey = sanitizeKey(process.env.ANTHROPIC_API_KEY);
+    if (!anthropicKey) {
+      process.stderr.write(
+        "エラー: 環境変数 ANTHROPIC_API_KEY が未設定です" +
+          "（戦略生成が不要なら --no-strategy）。\n",
+      );
+      process.exit(2);
+    }
+    process.env.ANTHROPIC_API_KEY = anthropicKey;
   }
 
   const deduped = await collectTweets(opts, process.env.SOCIALDATA_API_KEY);
