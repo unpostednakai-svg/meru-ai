@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Collects popular X (Twitter) long-form articles via SocialData and generates a Japanese trend/summary report with Claude.",
+  "description": "Collects high-engagement X (Twitter) posts via SocialData and generates a Japanese growth-strategy report with Claude (+ web_search grounding).",
   "bin": {
     "x-article-researcher": "index.js"
   },
