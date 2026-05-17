@@ -3,3 +3,9 @@ node_modules/
 .env
 .DS_Store
 out/
+
+# 生成物（収集データ / 分析レポート）
+report.json
+report.md
+*.report.json
+*.report.md

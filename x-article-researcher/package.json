@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "CLI that researches a topic with Claude + live web search and writes a cited article.",
+  "description": "Collects popular X (Twitter) long-form articles via SocialData and generates a Japanese trend/summary report with Claude.",
   "bin": {
     "x-article-researcher": "index.js"
   },

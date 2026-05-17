@@ -2,192 +2,360 @@
 /**
  * x-article-researcher
  *
- * Give it a topic; it researches the topic with Claude's live web search
- * tool and produces a finished, cited article.
+ * SocialData API を使って X（旧 Twitter）の長文記事（x.com/i/article）の
+ * うち、エンゲージメントの高い日本語投稿を収集し、JSON レポートに保存。
+ * さらに Claude で日本語のトレンド分析・要約レポートを生成する。
  *
- * Usage:
- *   ANTHROPIC_API_KEY=sk-... node index.js "your topic here"
- *   node index.js --topic "your topic" --length long --output article.md
+ * 使い方:
+ *   SOCIALDATA_API_KEY=... ANTHROPIC_API_KEY=... node index.js
+ *   node index.js --min-likes 2000 --days 14 --analyze-top 20
  *
- * Run `node index.js --help` for all options.
+ * 全オプションは `node index.js --help` を参照。
  */
 
 import { parseArgs } from "node:util";
 import { writeFile } from "node:fs/promises";
 import process from "node:process";
 
+const SEARCH_ENDPOINT = "https://api.socialdata.tools/twitter/search";
+
 const DEFAULTS = {
+  minLikes: 1000,
+  days: 30,
+  lang: "ja",
+  maxPages: 20,
+  output: "report.json",
+  report: "report.md",
+  analyzeTop: 30,
   model: "claude-opus-4-7",
-  maxTokens: 32000,
+  maxTokens: 16000,
   effort: "high",
-  maxSearches: 8,
-  maxContinuations: 6,
-  length: "medium",
 };
 
-const HELP = `x-article-researcher — research a topic with Claude + web search, output a cited article.
+const HELP = `x-article-researcher — X の人気長文記事を収集し、Claude で日本語分析レポートを生成。
 
-USAGE
-  x-article-researcher <topic> [options]
-  x-article-researcher --topic "<topic>" [options]
+使い方
+  x-article-researcher [オプション]
 
-OPTIONS
-  -t, --topic <text>        Topic to research (or pass as a positional argument).
-  -o, --output <file>       Write the article to <file> instead of stdout.
-      --length <size>       short | medium | long, or a word count like "1200".
-                            (default: ${DEFAULTS.length})
-      --audience <text>     Who the article is for, e.g. "software engineers".
-      --tone <text>         Desired tone, e.g. "neutral and analytical".
-      --model <id>          Claude model ID (default: ${DEFAULTS.model}).
-      --max-tokens <n>      Max output tokens (default: ${DEFAULTS.maxTokens}).
-      --effort <level>      low | medium | high | max (default: ${DEFAULTS.effort}).
-      --max-searches <n>    Cap on web searches (default: ${DEFAULTS.maxSearches}).
-      --max-continuations <n>
-                            Cap on server tool-loop continuations
-                            (default: ${DEFAULTS.maxContinuations}).
-      --no-thinking         Disable adaptive thinking.
-  -h, --help                Show this help.
+オプション
+      --min-likes <n>     最小いいね数 (既定: ${DEFAULTS.minLikes})
+      --days <n>          遡る日数 (既定: ${DEFAULTS.days})
+      --lang <ja|all>     言語フィルター (既定: ${DEFAULTS.lang})
+      --max-pages <n>     取得する最大ページ数 (既定: ${DEFAULTS.maxPages})
+      --output <file>     収集データの保存先 JSON (既定: ${DEFAULTS.output})
+      --report <file>     Claude 分析レポートの保存先 MD (既定: ${DEFAULTS.report})
+      --analyze-top <n>   Claude に渡す上位件数 (既定: ${DEFAULTS.analyzeTop})
+      --no-analyze        収集のみ。Claude 分析をスキップ
+      --model <id>        Claude モデル ID (既定: ${DEFAULTS.model})
+      --max-tokens <n>    最大出力トークン (既定: ${DEFAULTS.maxTokens})
+      --effort <level>    low | medium | high | max (既定: ${DEFAULTS.effort})
+      --no-thinking       adaptive thinking を無効化
+  -h, --help              このヘルプを表示
 
-ENVIRONMENT
-  ANTHROPIC_API_KEY         Required. Your Anthropic API key.
+環境変数
+  SOCIALDATA_API_KEY      必須。SocialData API キー
+  ANTHROPIC_API_KEY       Claude 分析を行う場合は必須（--no-analyze 時は不要）
 
-EXAMPLES
-  x-article-researcher "the state of solid-state batteries in 2026"
-  x-article-researcher -t "RISC-V adoption" --length long -o riscv.md
-  x-article-researcher "EU AI Act enforcement" --audience "policy analysts"
+例
+  x-article-researcher --min-likes 2000 --days 14
+  x-article-researcher --lang all --no-analyze --output tweets.json
 `;
 
 function parseCli(argv) {
-  const { values, positionals } = parseArgs({
+  const { values } = parseArgs({
     args: argv,
-    allowPositionals: true,
+    allowPositionals: false,
     options: {
-      topic: { type: "string", short: "t" },
-      output: { type: "string", short: "o" },
-      length: { type: "string" },
-      audience: { type: "string" },
-      tone: { type: "string" },
+      "min-likes": { type: "string" },
+      days: { type: "string" },
+      lang: { type: "string" },
+      "max-pages": { type: "string" },
+      output: { type: "string" },
+      report: { type: "string" },
+      "analyze-top": { type: "string" },
+      "no-analyze": { type: "boolean" },
       model: { type: "string" },
       "max-tokens": { type: "string" },
       effort: { type: "string" },
-      "max-searches": { type: "string" },
-      "max-continuations": { type: "string" },
       "no-thinking": { type: "boolean" },
       help: { type: "boolean", short: "h" },
     },
   });
 
-  const topic = (values.topic ?? positionals.join(" ")).trim();
-
   const toInt = (raw, fallback, label) => {
     if (raw === undefined) return fallback;
     const n = Number.parseInt(raw, 10);
     if (!Number.isFinite(n) || n <= 0) {
-      throw new Error(`Invalid value for ${label}: "${raw}" (expected a positive integer)`);
+      throw new Error(`${label} の値が不正です: "${raw}"（正の整数を指定してください）`);
     }
     return n;
   };
 
+  const lang = values.lang ?? DEFAULTS.lang;
+  if (!["ja", "all"].includes(lang)) {
+    throw new Error(`--lang が不正です: "${lang}"（ja | all）`);
+  }
+
   const effort = values.effort ?? DEFAULTS.effort;
   if (!["low", "medium", "high", "max"].includes(effort)) {
-    throw new Error(`Invalid --effort: "${effort}" (expected low | medium | high | max)`);
+    throw new Error(`--effort が不正です: "${effort}"（low | medium | high | max）`);
   }
 
   return {
     help: values.help ?? false,
-    topic,
-    output: values.output,
-    length: values.length ?? DEFAULTS.length,
-    audience: values.audience,
-    tone: values.tone,
+    minLikes: toInt(values["min-likes"], DEFAULTS.minLikes, "--min-likes"),
+    days: toInt(values.days, DEFAULTS.days, "--days"),
+    lang,
+    maxPages: toInt(values["max-pages"], DEFAULTS.maxPages, "--max-pages"),
+    output: values.output ?? DEFAULTS.output,
+    report: values.report ?? DEFAULTS.report,
+    analyzeTop: toInt(values["analyze-top"], DEFAULTS.analyzeTop, "--analyze-top"),
+    analyze: !(values["no-analyze"] ?? false),
     model: values.model ?? DEFAULTS.model,
     maxTokens: toInt(values["max-tokens"], DEFAULTS.maxTokens, "--max-tokens"),
     effort,
-    maxSearches: toInt(values["max-searches"], DEFAULTS.maxSearches, "--max-searches"),
-    maxContinuations: toInt(
-      values["max-continuations"],
-      DEFAULTS.maxContinuations,
-      "--max-continuations",
-    ),
     thinking: !(values["no-thinking"] ?? false),
   };
 }
 
-const SYSTEM_PROMPT = `You are a meticulous research writer. Given a topic, you use the
-web_search tool to gather current, reliable information from primary and
-reputable secondary sources, then write a single finished article.
+const log = (s) => process.stderr.write(s);
 
-Research rules:
-- Search before you assert. Prefer recent, authoritative sources; cross-check
-  surprising or contested claims against more than one source.
-- Distinguish established facts from speculation, and note disagreement
-  between sources where it exists.
-- Never invent facts, quotes, statistics, or URLs.
-
-Output rules:
-- Respond with ONLY the article itself, in Markdown. No preamble, no
-  meta-commentary, no description of your research process in the response
-  text (do that thinking internally).
-- Open with an H1 title, then a short standfirst/lede, then well-structured
-  sections with H2/H3 headings as appropriate.
-- Attribute specific claims inline by naming the source/publication in prose
-  (e.g. "according to Reuters" or "a 2026 IEA report found"). Do NOT write a
-  numbered "References" or "Sources" list yourself — a verified Sources
-  section is appended automatically from the pages you actually searched.
-- Be accurate and concrete over comprehensive. Aim for the requested length.`;
-
-function buildUserPrompt(opts) {
-  const lines = [`Research and write an article on the following topic:`, ``, opts.topic, ``];
-
-  const lengthGuide = {
-    short: "Length: concise — roughly 500–800 words.",
-    medium: "Length: standard — roughly 1000–1500 words.",
-    long: "Length: in-depth — roughly 2000–3000 words.",
-  };
-  if (lengthGuide[opts.length]) {
-    lines.push(lengthGuide[opts.length]);
-  } else {
-    lines.push(`Length: approximately ${opts.length} words.`);
-  }
-
-  if (opts.audience) lines.push(`Audience: ${opts.audience}.`);
-  if (opts.tone) lines.push(`Tone: ${opts.tone}.`);
-
-  lines.push(
-    ``,
-    `Use web search to ground the article in current information before writing.`,
-  );
-  return lines.join("\n");
+function ymd(date) {
+  return date.toISOString().slice(0, 10);
 }
 
-/** Pull a deduped {url, title} list out of web_search_tool_result blocks. */
-function collectSources(messages) {
-  const byUrl = new Map();
-  for (const msg of messages) {
-    const content = Array.isArray(msg.content) ? msg.content : [];
-    for (const block of content) {
-      if (block?.type !== "web_search_tool_result") continue;
-      const results = block.content;
-      if (!Array.isArray(results)) continue; // error result -> object, skip
-      for (const r of results) {
-        if (r?.type === "web_search_result" && r.url && !byUrl.has(r.url)) {
-          byUrl.set(r.url, { url: r.url, title: r.title || r.url });
+// Python 版と同一: ひらがな・カタカナ (U+3040–U+30FF) と漢字 (U+4E00–U+9FFF)
+const JP_RE = /[぀-ヿ一-鿿]/;
+const isJapanese = (text) => JP_RE.test(text || "");
+
+async function searchArticles(opts, apiKey) {
+  const since = ymd(new Date(Date.now() - opts.days * 86400000));
+  const until = ymd(new Date());
+  const query =
+    `url:x.com/i/article min_faves:${opts.minLikes} -filter:replies ` +
+    `since:${since} until:${until}`;
+
+  log(`クエリ: ${query}\n`);
+
+  const allTweets = [];
+  let cursor = null;
+  let page = 0;
+
+  while (true) {
+    page += 1;
+    const params = new URLSearchParams({ query, type: "Latest" });
+    if (cursor) params.set("cursor", cursor);
+
+    log(`ページ ${page} 取得中...\n`);
+
+    let res;
+    try {
+      res = await fetch(`${SEARCH_ENDPOINT}?${params}`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+    } catch (err) {
+      log(`通信エラー: ${err.message ?? err}\n`);
+      break;
+    }
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      log(`API エラー ${res.status}: ${body}\n`);
+      break;
+    }
+
+    const data = await res.json();
+    const tweets = Array.isArray(data.tweets) ? data.tweets : [];
+    log(`  → ${tweets.length}件取得\n`);
+
+    if (tweets.length === 0) break;
+
+    allTweets.push(...tweets);
+    cursor = data.next_cursor ?? null;
+    if (!cursor || page >= opts.maxPages) break;
+  }
+
+  log(`\n検索合計: ${allTweets.length}件\n`);
+
+  let filtered;
+  if (opts.lang === "ja") {
+    filtered = allTweets.filter(
+      (t) =>
+        isJapanese(t.full_text) ||
+        isJapanese(t.user?.description) ||
+        isJapanese(t.user?.name),
+    );
+    log(`日本語フィルター後: ${filtered.length}件\n`);
+  } else {
+    filtered = allTweets;
+  }
+
+  const seen = new Map();
+  for (const t of filtered) {
+    const key = `${t.user?.screen_name}_${(t.full_text || "").slice(0, 50)}`;
+    const prev = seen.get(key);
+    if (!prev || (prev.favorite_count ?? 0) < (t.favorite_count ?? 0)) {
+      seen.set(key, t);
+    }
+  }
+
+  const deduped = [...seen.values()].sort(
+    (a, b) => (b.favorite_count ?? 0) - (a.favorite_count ?? 0),
+  );
+  log(`重複除去後: ${deduped.length}件\n`);
+
+  return deduped;
+}
+
+function mapReport(tweets) {
+  return tweets.map((t) => ({
+    title: t.article?.title ?? "",
+    text: t.full_text ?? "",
+    url: `https://x.com/i/web/status/${t.id_str ?? ""}`,
+    author: t.user?.name ?? "",
+    username: t.user?.screen_name ?? "",
+    followers: t.user?.followers_count ?? 0,
+    likes: t.favorite_count ?? 0,
+    retweets: t.retweet_count ?? 0,
+    bookmarks: t.bookmark_count ?? 0,
+    views: t.views_count ?? 0,
+    date: t.created_at ?? "",
+  }));
+}
+
+const ANALYSIS_SYSTEM = `あなたは日本語で書く編集アナリストです。X（旧 Twitter）で
+話題になった長文記事の投稿データ（タイトル、本文抜粋、エンゲージメント指標、
+投稿者）が与えられます。これをもとに、簡潔で実用的な日本語レポートを
+Markdown で作成してください。
+
+構成:
+1. # トレンド分析 — 人気テーマ、記事間の共通点、注目すべき投稿者、
+   エンゲージメント（いいね/RT/ブックマーク/閲覧）の傾向を概観。
+2. # 注目記事 — 上位記事を1件ずつ、タイトル・要点（2〜4文の日本語要約）・
+   主要指標・リンクで簡潔にまとめる。
+
+ルール:
+- 与えられたデータに基づくこと。推測は「推測」と明示する。
+- 数値や投稿者名、URL を捏造しない。データにない情報は補わない。
+- レポート本文（Markdown）のみを出力し、前置きや作業説明は書かない。`;
+
+function buildAnalysisInput(report, top) {
+  const items = report.slice(0, top).map((r, i) => ({
+    rank: i + 1,
+    title: r.title,
+    text: (r.text || "").slice(0, 800),
+    author: r.author,
+    username: r.username,
+    followers: r.followers,
+    likes: r.likes,
+    retweets: r.retweets,
+    bookmarks: r.bookmarks,
+    views: r.views,
+    url: r.url,
+    date: r.date,
+  }));
+  return (
+    `以下は X で収集した人気長文記事の投稿データ（いいね数の多い順、` +
+    `上位${items.length}件）です。これを分析し、日本語レポートを作成してください。\n\n` +
+    "```json\n" +
+    JSON.stringify(items, null, 2) +
+    "\n```"
+  );
+}
+
+async function analyzeWithClaude(report, opts) {
+  let Anthropic;
+  try {
+    ({ default: Anthropic } = await import("@anthropic-ai/sdk"));
+  } catch {
+    log("エラー: 依存関係が未インストールです。`npm install` を実行してください。\n");
+    process.exit(2);
+  }
+
+  const client = new Anthropic();
+  const thinking = opts.thinking
+    ? { type: "adaptive", display: "summarized" }
+    : { type: "disabled" };
+
+  log(`\nClaude で分析中（上位${Math.min(opts.analyzeTop, report.length)}件）...\n`);
+
+  let stream;
+  try {
+    stream = client.messages.stream({
+      model: opts.model,
+      max_tokens: opts.maxTokens,
+      system: [
+        {
+          type: "text",
+          text: ANALYSIS_SYSTEM,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+      thinking,
+      output_config: { effort: opts.effort },
+      messages: [
+        { role: "user", content: buildAnalysisInput(report, opts.analyzeTop) },
+      ],
+    });
+
+    let inThinking = false;
+    for await (const event of stream) {
+      if (event.type === "content_block_start") {
+        const b = event.content_block;
+        if (b?.type === "thinking" && opts.thinking) {
+          if (!inThinking) log("\n[思考] ");
+          inThinking = true;
+        } else if (b?.type === "text") {
+          inThinking = false;
+        }
+      } else if (event.type === "content_block_delta") {
+        const d = event.delta;
+        if (d?.type === "thinking_delta" && opts.thinking) {
+          log(d.thinking);
+        } else if (d?.type === "text_delta") {
+          log(".");
         }
       }
     }
-  }
-  return [...byUrl.values()];
-}
 
-function articleText(messages) {
-  const parts = [];
-  for (const msg of messages) {
-    const content = Array.isArray(msg.content) ? msg.content : [];
-    for (const block of content) {
-      if (block?.type === "text" && block.text) parts.push(block.text);
+    const msg = await stream.finalMessage();
+    if (msg.stop_reason === "refusal") {
+      log(
+        "\nClaude が分析を拒否しました" +
+          (msg.stop_details?.explanation
+            ? `: ${msg.stop_details.explanation}\n`
+            : "。\n"),
+      );
+      return null;
     }
+    if (msg.stop_reason === "max_tokens") {
+      log("\n警告: max_tokens に達しました。--max-tokens を増やして再実行してください。\n");
+    }
+
+    const text = (msg.content ?? [])
+      .filter((b) => b?.type === "text")
+      .map((b) => b.text)
+      .join("")
+      .trim();
+
+    const u = msg.usage ?? {};
+    log(
+      `\nClaude 完了。トークン in/out: ${u.input_tokens ?? "?"}/${u.output_tokens ?? "?"}\n`,
+    );
+    return text || null;
+  } catch (err) {
+    log("\n");
+    if (err instanceof Anthropic.AuthenticationError) {
+      log("エラー: ANTHROPIC_API_KEY が無効です。\n");
+    } else if (err instanceof Anthropic.RateLimitError) {
+      log("エラー: API のレート制限に達しました。時間をおいて再実行してください。\n");
+    } else if (err instanceof Anthropic.APIError) {
+      log(`API エラー (${err.status ?? "?"}): ${err.message}\n`);
+    } else {
+      log(`エラー: ${err.message ?? err}\n`);
+    }
+    return null;
   }
-  return parts.join("").trim();
 }
 
 async function main() {
@@ -195,7 +363,7 @@ async function main() {
   try {
     opts = parseCli(process.argv.slice(2));
   } catch (err) {
-    process.stderr.write(`Error: ${err.message}\n\n${HELP}`);
+    process.stderr.write(`エラー: ${err.message}\n\n${HELP}`);
     process.exit(2);
   }
 
@@ -203,172 +371,49 @@ async function main() {
     process.stdout.write(HELP);
     return;
   }
-  if (!opts.topic) {
-    process.stderr.write(`Error: no topic provided.\n\n${HELP}`);
+
+  const socialKey = process.env.SOCIALDATA_API_KEY;
+  if (!socialKey) {
+    process.stderr.write(
+      "エラー: 環境変数 SOCIALDATA_API_KEY が未設定です。\n",
+    );
     process.exit(2);
   }
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (opts.analyze && !process.env.ANTHROPIC_API_KEY) {
     process.stderr.write(
-      "Error: ANTHROPIC_API_KEY is not set. Export it and try again.\n",
+      "エラー: 環境変数 ANTHROPIC_API_KEY が未設定です" +
+        "（Claude 分析が不要なら --no-analyze を指定）。\n",
     );
     process.exit(2);
   }
 
-  let Anthropic;
-  try {
-    ({ default: Anthropic } = await import("@anthropic-ai/sdk"));
-  } catch {
-    process.stderr.write(
-      "Error: dependencies are not installed. Run `npm install` first.\n",
-    );
-    process.exit(2);
-  }
+  const deduped = await searchArticles(opts, socialKey);
+  const report = mapReport(deduped);
 
-  const client = new Anthropic();
+  await writeFile(opts.output, JSON.stringify(report, null, 2) + "\n", "utf-8");
+  log(`\nレポート保存: ${opts.output} (${report.length}件)\n`);
 
-  // Article goes to stdout only when not writing a file; otherwise stdout
-  // stays clean and progress/preview goes to stderr.
-  const toFile = Boolean(opts.output);
-  const articleStream = toFile ? process.stderr : process.stdout;
-  const progress = (s) => process.stderr.write(s);
-
-  const tools = [
-    {
-      type: "web_search_20260209",
-      name: "web_search",
-      max_uses: opts.maxSearches,
-    },
-  ];
-
-  const thinking = opts.thinking
-    ? { type: "adaptive", display: "summarized" }
-    : { type: "disabled" };
-
-  const requestBase = {
-    model: opts.model,
-    max_tokens: opts.maxTokens,
-    system: [
-      { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
-    ],
-    thinking,
-    output_config: { effort: opts.effort },
-    tools,
-  };
-
-  let messages = [{ role: "user", content: buildUserPrompt(opts) }];
-  const transcript = [];
-  let finalMessage = null;
-
-  progress(`Researching: ${opts.topic}\n`);
-
-  try {
-    for (let turn = 0; turn <= opts.maxContinuations; turn++) {
-      const stream = client.messages.stream({ ...requestBase, messages });
-
-      let inThinking = false;
-      for await (const event of stream) {
-        if (event.type === "content_block_start") {
-          const b = event.content_block;
-          if (b?.type === "server_tool_use" && b?.name === "web_search") {
-            progress("\n  web search…");
-          } else if (b?.type === "web_search_tool_result") {
-            const n = Array.isArray(b.content) ? b.content.length : 0;
-            progress(n ? ` ${n} results\n` : " (no results)\n");
-          } else if (b?.type === "thinking" && opts.thinking) {
-            if (!inThinking) progress("\n[thinking] ");
-            inThinking = true;
-          } else if (b?.type === "text") {
-            inThinking = false;
-            if (toFile) progress("\n[draft]\n");
-          }
-        } else if (event.type === "content_block_delta") {
-          const d = event.delta;
-          if (d?.type === "text_delta") {
-            articleStream.write(d.text);
-          } else if (d?.type === "thinking_delta" && opts.thinking) {
-            progress(d.thinking);
-          }
-        }
-      }
-
-      const msg = await stream.finalMessage();
-      transcript.push({ role: "assistant", content: msg.content });
-
-      if (msg.stop_reason === "pause_turn") {
-        // Server-side tool loop hit its iteration cap — resume it.
-        messages = [...messages, { role: "assistant", content: msg.content }];
-        progress("\n  …continuing research\n");
-        continue;
-      }
-
-      finalMessage = msg;
-      if (msg.stop_reason === "refusal") {
-        progress("\n");
-        process.stderr.write(
-          "The model declined to produce this article" +
-            (msg.stop_details?.explanation
-              ? `: ${msg.stop_details.explanation}\n`
-              : ".\n"),
-        );
-        process.exit(1);
-      }
-      if (msg.stop_reason === "max_tokens") {
-        progress(
-          "\nWarning: hit max_tokens — the article may be truncated. " +
-            "Re-run with a larger --max-tokens.\n",
-        );
-      }
-      break;
+  if (opts.analyze && report.length > 0) {
+    const analysis = await analyzeWithClaude(report, opts);
+    if (analysis) {
+      await writeFile(
+        opts.report,
+        analysis.endsWith("\n") ? analysis : analysis + "\n",
+        "utf-8",
+      );
+      log(`分析レポート保存: ${opts.report}\n`);
     }
-  } catch (err) {
-    progress("\n");
-    if (err instanceof Anthropic.AuthenticationError) {
-      process.stderr.write("Error: invalid ANTHROPIC_API_KEY.\n");
-    } else if (err instanceof Anthropic.RateLimitError) {
-      process.stderr.write("Error: rate limited by the API. Try again later.\n");
-    } else if (err instanceof Anthropic.APIError) {
-      process.stderr.write(`API error (${err.status ?? "?"}): ${err.message}\n`);
-    } else {
-      process.stderr.write(`Error: ${err.message ?? err}\n`);
-    }
-    process.exit(1);
+  } else if (opts.analyze) {
+    log("\n収集件数が 0 のため、Claude 分析はスキップしました。\n");
   }
 
-  if (!finalMessage) {
-    process.stderr.write(
-      "\nError: research did not finish within --max-continuations. " +
-        "Increase it and retry.\n",
-    );
-    process.exit(1);
-  }
-
-  let article = articleText(transcript);
-  if (!article) {
-    process.stderr.write("\nError: the model returned no article text.\n");
-    process.exit(1);
-  }
-
-  const sources = collectSources(transcript);
-  if (sources.length) {
-    const list = sources
-      .map((s, i) => `${i + 1}. [${s.title}](${s.url})`)
-      .join("\n");
-    article += `\n\n## Sources\n\n${list}\n`;
-  }
-
-  if (toFile) {
-    await writeFile(opts.output, article.endsWith("\n") ? article : article + "\n");
-    progress(`\n\nSaved article to ${opts.output}\n`);
-  } else {
-    if (!article.endsWith("\n")) process.stdout.write("\n");
-  }
-
-  const u = finalMessage.usage ?? {};
-  progress(
-    `\nDone. tokens in/out: ${u.input_tokens ?? "?"}/${u.output_tokens ?? "?"}` +
-      `, web searches: ${u.server_tool_use?.web_search_requests ?? 0}` +
-      `, sources: ${sources.length}\n`,
-  );
+  const top = report.slice(0, 5);
+  let out = "\n=== 上位5件 ===\n";
+  top.forEach((r, i) => {
+    out += `\n#${i + 1} いいね${(r.likes ?? 0).toLocaleString("ja-JP")} @${r.username}\n`;
+    out += `  ${(r.text || "").slice(0, 100)}...\n`;
+  });
+  process.stdout.write(out);
 }
 
 main();
